@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jōyō Kanji Flashcards</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>漢字 <span>Jōyō Kanji Flashcards</span></h1>
+  <div class="header-controls">
+    <select id="gradeSelect" title="Filter by school grade">
+      <option value="all">All grades (2136)</option>
+      <option value="1">Grade 1 (80)</option>
+      <option value="2">Grade 2 (160)</option>
+      <option value="3">Grade 3 (200)</option>
+      <option value="4">Grade 4 (202)</option>
+      <option value="5">Grade 5 (193)</option>
+      <option value="6">Grade 6 (191)</option>
+      <option value="S">Secondary (1110)</option>
+    </select>
+    <select id="modeSelect" title="Card front">
+      <option value="kanji">Front: Kanji</option>
+      <option value="meaning">Front: Meaning</option>
+    </select>
+    <label class="toggle" title="Only show cards you haven't marked as known">
+      <input type="checkbox" id="unknownOnly"> Unlearned only
+    </label>
+  </div>
+</header>
+
+<main>
+  <div class="progress-bar"><div id="progressFill"></div></div>
+  <div class="deck-info">
+    <span id="cardPos">1 / 2136</span>
+    <span id="knownCount"></span>
+  </div>
+
+  <div class="card-container">
+    <div class="card" id="card">
+      <div class="card-face card-front">
+        <div class="kanji-main" id="frontContent"></div>
+        <div class="hint">click or press space to flip</div>
+      </div>
+      <div class="card-face card-back">
+        <div class="kanji-small" id="backKanji"></div>
+        <div class="meaning" id="backMeaning"></div>
+        <div class="readings">
+          <div class="kana" id="backKana"></div>
+          <div class="romaji" id="backRomaji"></div>
+        </div>
+        <div class="meta" id="backMeta"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="prevBtn" title="Previous (←)">←</button>
+    <button id="againBtn" class="again" title="Still learning (1)">✗ Again</button>
+    <button id="knownBtn" class="known" title="I know this (2)">✓ Known</button>
+    <button id="nextBtn" title="Next (→)">→</button>
+  </div>
+
+  <div class="footer-controls">
+    <button id="shuffleBtn">🔀 Shuffle</button>
+    <button id="resetBtn">Reset progress</button>
+  </div>
+
+  <p class="empty-msg" id="emptyMsg" hidden>🎉 Nothing left to review in this deck — you've marked everything as known!</p>
+</main>
+
+<footer>
+  Data: <a href="https://en.wikipedia.org/wiki/List_of_j%C5%8Dy%C5%8D_kanji" target="_blank" rel="noopener">Wikipedia — List of jōyō kanji</a>
+  · Keys: <kbd>space</kbd> flip · <kbd>←</kbd><kbd>→</kbd> navigate · <kbd>1</kbd> again · <kbd>2</kbd> known
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

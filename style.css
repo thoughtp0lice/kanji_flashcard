@@ -1,0 +1,232 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f5f2eb;
+  --surface: #ffffff;
+  --ink: #2b2b2b;
+  --muted: #8a8578;
+  --accent: #b5443c;
+  --accent-soft: #e8d5d3;
+  --green: #4a7c59;
+  --border: #e0dbd0;
+  --shadow: 0 4px 24px rgba(60, 50, 30, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1a17;
+    --surface: #282520;
+    --ink: #ece7dd;
+    --muted: #9a927f;
+    --accent: #d4685f;
+    --accent-soft: #4a3230;
+    --green: #6fae82;
+    --border: #3a352d;
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+}
+
+body {
+  font-family: "Hiragino Sans", "Noto Sans JP", Meiryo, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+h1 {
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+h1 span {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: normal;
+  margin-left: 0.4rem;
+}
+
+.header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+select, .toggle {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.toggle { display: flex; align-items: center; gap: 0.35rem; user-select: none; }
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#progressFill {
+  height: 100%;
+  width: 0;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.deck-info {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.5rem 0 1.25rem;
+}
+
+.card-container {
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 4 / 3;
+  perspective: 1200px;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+  cursor: pointer;
+}
+.card.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  gap: 0.6rem;
+}
+.card-back { transform: rotateY(180deg); }
+
+.kanji-main {
+  font-size: clamp(5rem, 22vw, 9rem);
+  line-height: 1.1;
+  text-align: center;
+}
+.kanji-main.text-front {
+  font-size: clamp(1.4rem, 5vw, 2.2rem);
+  font-weight: 600;
+}
+
+.hint {
+  position: absolute;
+  bottom: 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.kanji-small { font-size: 3.2rem; line-height: 1.1; }
+.meaning { font-size: 1.25rem; font-weight: 600; text-align: center; }
+.readings { text-align: center; }
+.kana { font-size: 1.05rem; color: var(--accent); }
+.romaji { font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; }
+.meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+  margin-top: 0.3rem;
+}
+
+.controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+button {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+button:hover { transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+
+button.known { background: var(--green); color: #fff; border-color: transparent; }
+button.again { background: var(--accent); color: #fff; border-color: transparent; }
+
+.footer-controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.footer-controls button {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+  color: var(--muted);
+}
+
+.empty-msg {
+  margin-top: 2rem;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+footer {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--muted); }
+kbd {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 0.3em;
+  font-family: inherit;
+}
