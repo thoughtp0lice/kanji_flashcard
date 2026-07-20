@@ -1,0 +1,82 @@
+# 漢字 kanji flashcards
+
+A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji.
+React + Vite frontend, small Express + SQLite backend for accounts and
+cross-device sync.
+
+![CI](https://github.com/thoughtp0lice/kanji_flashcard/actions/workflows/ci.yml/badge.svg)
+
+## Features
+
+- **Daily decks** — pick a starting school grade and a pace (new kanji/day,
+  max reviews/day); each day blends new kanji with due reviews. New cards
+  favor the lowest unfinished grade and blend higher grades in as you
+  progress.
+- **Spaced repetition** — SM-2-style scheduling: a ✓ grows a card's interval
+  ~×2.5 (4 → 10 → 25 → 63 days…), a ✗ cuts it to ~20% and brings the card
+  back tomorrow. Yesterday's misses are always in today's deck, even past
+  the review limit.
+- **Card details** — meaning, on/kun readings, rōmaji, stroke count,
+  radical, old forms, and up to 3 common example words per kanji
+  (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
+- **Seen-kanji browser** — grid of everything you've studied, sortable by
+  most-failed, filterable to failed-only, with detail popups.
+- **Practice mode** — freely flip through your failed kanji between days
+  without touching the schedule.
+- **Infinite mode** — keep drawing capped-out reviews and extra new cards
+  after the daily deck is done.
+- **Accounts & sync** — username/password accounts (scrypt-hashed, session
+  tokens, SQLite); progress and preferences sync across devices, with
+  localStorage keeping everything usable offline.
+
+## Running
+
+Requires Node 24+ (the backend uses the built-in `node:sqlite`).
+
+```sh
+npm install
+
+# development: vite (port 5173) + API server (port 8034, proxied under /api)
+npm run server &
+npm run dev
+
+# production: build once, serve app + API from one port
+npm run start          # http://localhost:8033
+```
+
+To use it from other devices on your LAN, expose the dev server with
+`npm run dev -- --host` (or just use `npm run start`, which binds normally).
+Note that traffic is plain HTTP — fine for a home network, but put it behind
+HTTPS before exposing it further.
+
+User data lives in `server/data/kanji.db` (gitignored).
+
+## Keyboard shortcuts
+
+| key | action |
+| --- | --- |
+| `space` | flip card |
+| `2` | ✓ know it |
+| `1` | ✗ don't know |
+| `→` | skip / next |
+| `esc` | back to lesson / close menu |
+
+## Development
+
+```sh
+npm test               # vitest: scheduler, API, and UI suites
+npm run test:watch
+```
+
+CI (GitHub Actions) builds and runs the full suite on every push and PR.
+
+- `src/lesson.js` — scheduling: intervals, lapses, daily deck generation
+- `src/Study.jsx` — main screen state: sync, day queue, views
+- `server/app.js` — Express API (`createApp(dbPath)`, tested in-memory)
+- `test/` — scheduler, server, and UI tests
+
+## Data sources
+
+- Kanji list: [Wikipedia — List of jōyō kanji](https://en.wikipedia.org/wiki/List_of_j%C5%8Dy%C5%8D_kanji)
+- Example words: [kanjiapi.dev](https://kanjiapi.dev) (JMdict/KANJIDIC2 via
+  the [EDRDG](https://www.edrdg.org/), CC BY-SA)
