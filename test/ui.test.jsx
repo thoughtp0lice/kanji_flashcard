@@ -135,15 +135,20 @@ describe("setup", () => {
 });
 
 describe("daily lesson", () => {
-  it("runs a full day: check advances, finishing shows the done screen", async () => {
+  it("runs a full day: check shows the answer, confirming advances", async () => {
     loggedIn();
     mockServer({ state: { prefs: PLAN } });
     render(<App />);
     const check = await screen.findByLabelText("I know this");
     expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
     await userEvent.click(check);
+    // answer side shows first — nothing recorded yet
+    expect(JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}")).toEqual({});
+    await userEvent.click(await screen.findByRole("button", { name: "✓ next" }));
     expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
     await userEvent.click(screen.getByLabelText("I know this"));
+    // the flip-back animation delays the content swap; wait for the buttons
+    await userEvent.click(await screen.findByRole("button", { name: "✓ next" }));
     expect(await screen.findByText(/done for today/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /keep going/ })).toBeInTheDocument();
     // both cards recorded as seen with SRS scheduling
@@ -151,6 +156,21 @@ describe("daily lesson", () => {
     const entries = Object.values(stats);
     expect(entries).toHaveLength(2);
     for (const st of entries) expect(st.interval).toBe(4);
+  });
+
+  it("check then 'actually no' records a fail instead", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: PLAN } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    await userEvent.click(screen.getByRole("button", { name: "✕ actually no" }));
+    const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
+    const st = Object.values(stats)[0];
+    expect(st.fails[todayStr()]).toBe(1);
+    // still on the answer side, ready to study, with the plain next button
+    expect(screen.getByRole("button", { name: "next →" })).toBeInTheDocument();
+    // card was not counted as done
+    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
   });
 
   it("cross flips the card to details and records the fail", async () => {
@@ -170,8 +190,10 @@ describe("daily lesson", () => {
     loggedIn();
     mockServer({ state: { prefs: PLAN } });
     render(<App />);
-    await userEvent.click(await screen.findByLabelText("I know this"));
-    await userEvent.click(await screen.findByLabelText("I know this"));
+    for (let i = 0; i < 2; i++) {
+      await userEvent.click(await screen.findByLabelText("I know this"));
+      await userEvent.click(await screen.findByRole("button", { name: "✓ next" }));
+    }
     await userEvent.click(await screen.findByRole("button", { name: /keep going/ }));
     expect(await screen.findByLabelText("I know this")).toBeInTheDocument();
     expect(screen.getByText(/stop ∞/)).toBeInTheDocument();

@@ -390,11 +390,13 @@ button {
 }
 
 .back-actions {
+  display: flex;
+  gap: 0.6rem;
   padding: 0.6rem 1.4rem 1.3rem;
 }
 
 .next-btn {
-  width: 100%;
+  flex: 1;
   border: none;
   background: var(--bg);
   color: var(--ink);
@@ -408,6 +410,14 @@ button {
 
 .next-btn:active {
   transform: scale(0.98);
+}
+
+.demote-btn {
+  color: var(--red);
+}
+
+.confirm-btn {
+  color: var(--green);
 }
 
 /* ---------- login ---------- */

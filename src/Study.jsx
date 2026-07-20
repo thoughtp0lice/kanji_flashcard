@@ -73,6 +73,8 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   const [infinite, setInfinite] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  // 'check' after ✓: the answer is showing, waiting for confirm / demote
+  const [pending, setPending] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const saveKnown = (next) => {
@@ -192,8 +194,16 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     );
   }, [stats, known, startGrade]);
 
-  // ✓ — knew it: SRS interval grows (or the card graduates), done for today
+  // ✓ — "I think I know it": show the answer first; nothing is recorded
+  // until the user confirms or demotes
   const check = () => {
+    if (!card) return;
+    setPending("check");
+    setFlipped(true);
+  };
+
+  // confirmed after seeing the answer: SRS interval grows, done for today
+  const confirmCheck = () => {
     if (!card) return;
     const t = todayStr();
     const st = stats[card.id] ?? { seen: t, fails: {} };
@@ -204,13 +214,11 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
       queue: day.queue.slice(1),
       done: [...day.done, card.id],
     });
+    setPending(null);
     setFlipped(false);
   };
 
-  // ✗ — failed: interval shrinks, due again tomorrow; flip to study and the
-  // card retries later today
-  const cross = () => {
-    if (!card) return;
+  const recordFail = () => {
     const t = todayStr();
     const st = stats[card.id] ?? { seen: t, fails: {} };
     saveStats({ ...stats, [card.id]: onFail(st, t) });
@@ -219,11 +227,28 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
       next.delete(card.id);
       saveKnown(next);
     }
+  };
+
+  // "actually I don't know" after ✓: record the fail, keep studying the
+  // answer; the card retries later today
+  const demote = () => {
+    if (!card) return;
+    recordFail();
+    setPending(null);
+  };
+
+  // ✗ — failed: interval shrinks, due again tomorrow; flip to study and the
+  // card retries later today
+  const cross = () => {
+    if (!card) return;
+    recordFail();
+    setPending(null);
     setFlipped(true);
   };
 
   // move the current card to the end of today's queue
   const skip = () => {
+    setPending(null);
     if (!card || day.queue.length < 2) {
       setFlipped(false);
       return;
@@ -252,10 +277,12 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           skip();
           break;
         case "1":
-          cross();
+          if (pending === "check") demote();
+          else cross();
           break;
         case "2":
-          check();
+          if (pending === "check") confirmCheck();
+          else check();
           break;
         case "Escape":
           setMenuOpen(false);
@@ -393,9 +420,12 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
               card={card}
               mode={mode}
               flipped={flipped}
+              pendingCheck={pending === "check"}
               onFlip={() => setFlipped((f) => !f)}
               onCheck={check}
               onCross={cross}
+              onConfirm={confirmCheck}
+              onDemote={demote}
               onNext={skip}
             />
           ) : (

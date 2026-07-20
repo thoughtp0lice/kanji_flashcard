@@ -12,9 +12,12 @@ export default function Flashcard({
   onFlip,
   onCheck,
   onCross,
+  onConfirm,
+  onDemote,
   onNext,
   onPrev,
   practice = false,
+  pendingCheck = false,
 }) {
   // The displayed card lags behind `card` when navigating away from a flipped
   // card, so the flip-back animation finishes before the answer swaps out.
@@ -154,16 +157,41 @@ export default function Flashcard({
           </div>
 
           <div className="back-actions">
-            <button
-              className="next-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNext();
-              }}
-              title="Next card (→)"
-            >
-              next →
-            </button>
+            {pendingCheck && card === shown ? (
+              <>
+                <button
+                  className="next-btn demote-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDemote();
+                  }}
+                  title="I was wrong (1)"
+                >
+                  ✕ actually no
+                </button>
+                <button
+                  className="next-btn confirm-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirm();
+                  }}
+                  title="Knew it — next (2)"
+                >
+                  ✓ next
+                </button>
+              </>
+            ) : (
+              <button
+                className="next-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNext();
+                }}
+                title="Next card (→)"
+              >
+                next →
+              </button>
+            )}
           </div>
         </div>
       </div>
