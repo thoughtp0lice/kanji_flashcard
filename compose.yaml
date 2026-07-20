@@ -1,0 +1,13 @@
+services:
+  kanji:
+    build: .
+    ports:
+      - "8033:8033"
+    volumes:
+      - kanji-data:/data
+    environment:
+      - KANJI_ADMINS=${KANJI_ADMINS:-}
+    restart: unless-stopped
+
+volumes:
+  kanji-data:

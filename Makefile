@@ -4,19 +4,17 @@
 # make test   -> run the test suite
 # make clean  -> remove build artifacts
 
-ESBUILD := node_modules/.bin/esbuild
-OUT     := build/kanji-server.mjs
-PORT    ?= 8033
+OUT  := build/kanji-server.mjs
+PORT ?= 8033
 
-.PHONY: build run test clean
+.PHONY: build run test clean docker
 
 build:
-	npm run build
-	node scripts/embed-assets.mjs
-	$(ESBUILD) server/prod.js --bundle --platform=node --format=esm \
-		--outfile=$(OUT) --log-level=error \
-		--banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
+	npm run bundle
 	@echo "built $(OUT) ($$(du -h $(OUT) | cut -f1))"
+
+docker:
+	docker build -t kanji-flashcard .
 
 run: build
 	PORT=$(PORT) KANJI_ADMINS=$(KANJI_ADMINS) node $(OUT)

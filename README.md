@@ -57,6 +57,16 @@ make run               # build + run          [PORT=8033] [KANJI_ADMINS=name]
 `node kanji-server.mjs`; it creates its SQLite database in `./data` next to
 itself (override with `KANJI_DATA=/path`).
 
+### Docker
+
+```sh
+docker compose up -d                    # http://localhost:8033
+KANJI_ADMINS=alice docker compose up -d # with an admin account
+```
+
+Or without compose: `make docker && docker run -p 8033:8033 -v kanji-data:/data kanji-flashcard`.
+User data persists in the `kanji-data` volume.
+
 ### Admin dashboard
 
 Set `KANJI_ADMINS` to a comma-separated list of usernames before starting
