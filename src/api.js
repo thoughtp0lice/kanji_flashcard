@@ -15,6 +15,24 @@ async function authRequest(path, username, password) {
 export const login = (u, p) => authRequest("/api/login", u, p);
 export const register = (u, p) => authRequest("/api/register", u, p);
 
+export async function adminOverview(token) {
+  const res = await fetch("/api/admin/overview", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+export async function adminDeleteUser(token, name) {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+}
+
 export function logout(token) {
   fetch("/api/logout", {
     method: "POST",

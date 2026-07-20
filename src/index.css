@@ -701,6 +701,85 @@ button {
   gap: 0.9rem;
 }
 
+/* ---------- admin ---------- */
+
+.admin {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-stats {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-stat {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 16px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: center;
+}
+
+.admin-stat-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-stat-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.72rem;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--card-edge);
+}
+
+.admin-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--card-edge);
+}
+
+.admin-empty {
+  color: var(--muted);
+}
+
+.admin-badge {
+  margin-left: 0.4rem;
+  font-size: 0.62rem;
+  color: var(--accent);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.05rem 0.35rem;
+}
+
+.admin-delete {
+  color: var(--red);
+  padding: 0.1rem 0.4rem;
+}
+
 /* ---------- practice / infinite ---------- */
 
 .practice-stage {

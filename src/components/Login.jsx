@@ -20,8 +20,8 @@ export default function Login({ onLogin }) {
     setError("");
     try {
       const fn = creating ? register : login;
-      const { token, username } = await fn(normalized, password);
-      onLogin(username, token);
+      const { token, username, admin } = await fn(normalized, password);
+      onLogin(username, token, admin);
     } catch (err) {
       setError(err.message === "Failed to fetch" ? "server unreachable" : err.message);
     } finally {

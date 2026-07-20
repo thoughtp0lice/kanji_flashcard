@@ -8,6 +8,8 @@ export default function SettingsSheet({
   onChangePlan,
   onReset,
   onSignOut,
+  isAdmin,
+  onAdmin,
 }) {
   return (
     <div className="sheet">
@@ -35,6 +37,11 @@ export default function SettingsSheet({
       <div className="sheet-row spread">
         <span className="stat">{user}</span>
         <span className="sheet-actions">
+          {isAdmin && (
+            <button className="ghost-btn" onClick={onAdmin}>
+              admin
+            </button>
+          )}
           <button className="ghost-btn" onClick={onReset}>
             reset
           </button>

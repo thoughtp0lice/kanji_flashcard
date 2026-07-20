@@ -195,6 +195,102 @@ describe("state", () => {
   });
 });
 
+describe("admin", () => {
+  let adminServer;
+  let adminBase;
+  let rootToken;
+  let userToken;
+
+  const adminApi = (path, opts = {}) => {
+    const prev = base;
+    base = adminBase;
+    const p = api(path, opts);
+    base = prev;
+    return p;
+  };
+
+  beforeAll(async () => {
+    const app = createApp(":memory:", { adminUsers: ["root"] });
+    await new Promise((resolve) => {
+      adminServer = app.listen(0, resolve);
+    });
+    adminBase = `http://localhost:${adminServer.address().port}`;
+    const reg = await adminApi("/api/register", {
+      method: "POST",
+      body: { username: "root", password: "sekret" },
+    });
+    const rootBody = await reg.json();
+    expect(rootBody.admin).toBe(true);
+    rootToken = rootBody.token;
+    const reg2 = await adminApi("/api/register", {
+      method: "POST",
+      body: { username: "mortal", password: "sekret" },
+    });
+    const mortalBody = await reg2.json();
+    expect(mortalBody.admin).toBe(false);
+    userToken = mortalBody.token;
+  });
+
+  afterAll(() => adminServer?.close());
+
+  it("rejects non-admin and unauthenticated access", async () => {
+    expect((await adminApi("/api/admin/overview")).status).toBe(401);
+    expect((await adminApi("/api/admin/overview", { token: userToken })).status).toBe(403);
+    expect(
+      (await adminApi("/api/admin/users/mortal", { method: "DELETE", token: userToken }))
+        .status
+    ).toBe(403);
+  });
+
+  it("reports users, visits, and active counts", async () => {
+    // two state loads by mortal, one by root -> 3 visits, 2 active today
+    await adminApi("/api/state", { token: userToken });
+    await adminApi("/api/state", { token: userToken });
+    await adminApi("/api/state", { token: rootToken });
+    const res = await adminApi("/api/admin/overview", { token: rootToken });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.totalUsers).toBe(2);
+    expect(body.visitsToday).toBe(3);
+    expect(body.activeToday).toBe(2);
+    expect(body.byDay).toHaveLength(1);
+    const mortal = body.users.find((u) => u.username === "mortal");
+    expect(mortal.admin).toBe(false);
+    expect(mortal.lastSeen).toBe(body.byDay[0].date);
+    expect(body.users.find((u) => u.username === "root").admin).toBe(true);
+  });
+
+  it("refuses to delete yourself", async () => {
+    const res = await adminApi("/api/admin/users/root", {
+      method: "DELETE",
+      token: rootToken,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("404s deleting an unknown user", async () => {
+    const res = await adminApi("/api/admin/users/ghost", {
+      method: "DELETE",
+      token: rootToken,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("deletes a user and invalidates their session", async () => {
+    const res = await adminApi("/api/admin/users/mortal", {
+      method: "DELETE",
+      token: rootToken,
+    });
+    expect(res.status).toBe(200);
+    expect((await adminApi("/api/state", { token: userToken })).status).toBe(401);
+    const overview = await (
+      await adminApi("/api/admin/overview", { token: rootToken })
+    ).json();
+    expect(overview.totalUsers).toBe(1);
+    expect(overview.users.some((u) => u.username === "mortal")).toBe(false);
+  });
+});
+
 describe("logout", () => {
   it("invalidates the session token", async () => {
     const reg = await api("/api/register", {

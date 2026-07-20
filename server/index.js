@@ -10,7 +10,9 @@ const DIST = join(__dirname, "..", "dist");
 const PORT = process.env.PORT || 8034;
 
 mkdirSync(DATA_DIR, { recursive: true });
-const app = createApp(join(DATA_DIR, "kanji.db"));
+const app = createApp(join(DATA_DIR, "kanji.db"), {
+  adminUsers: (process.env.KANJI_ADMINS || "").split(",").filter(Boolean),
+});
 
 // serve the production build when it exists (single-port deployment)
 if (existsSync(DIST)) {

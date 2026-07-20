@@ -28,6 +28,8 @@ cross-device sync.
 - **Accounts & sync** — username/password accounts (scrypt-hashed, session
   tokens, SQLite); progress and preferences sync across devices, with
   localStorage keeping everything usable offline.
+- **Admin dashboard** — user counts, daily visits, active users, and user
+  removal, for usernames listed in `KANJI_ADMINS`.
 
 ## Running
 
@@ -43,6 +45,24 @@ npm run dev
 # production: build once, serve app + API from one port
 npm run start          # http://localhost:8033
 ```
+
+### Single-file production build
+
+```sh
+make build             # -> build/kanji-server.mjs (frontend embedded)
+make run               # build + run          [PORT=8033] [KANJI_ADMINS=name]
+```
+
+`build/kanji-server.mjs` is fully self-contained — copy it anywhere and run
+`node kanji-server.mjs`; it creates its SQLite database in `./data` next to
+itself (override with `KANJI_DATA=/path`).
+
+### Admin dashboard
+
+Set `KANJI_ADMINS` to a comma-separated list of usernames before starting
+the server (e.g. `KANJI_ADMINS=alice make run`). Those users get an *admin*
+entry in the settings sheet showing total users, daily visits, active users
+for the last 14 days, and per-user stats with a delete action.
 
 To use it from other devices on your LAN, expose the dev server with
 `npm run dev -- --host` (or just use `npm run start`, which binds normally).

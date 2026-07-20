@@ -6,6 +6,7 @@ import SettingsSheet from "./components/SettingsSheet.jsx";
 import Setup from "./components/Setup.jsx";
 import DeckView from "./components/DeckView.jsx";
 import PracticeView from "./components/PracticeView.jsx";
+import AdminView from "./components/AdminView.jsx";
 import {
   GRADE_ORDER,
   generateDaily,
@@ -39,7 +40,7 @@ function mergeStats(local, server) {
   return out;
 }
 
-export default function Study({ user, token, onSignOut }) {
+export default function Study({ user, token, isAdmin, onSignOut }) {
   const knownKey = `joyo-kanji-known:${user}`;
   const prefsKey = `joyo-kanji-prefs:${user}`;
   const statsKey = `joyo-kanji-stats:${user}`;
@@ -305,11 +306,13 @@ export default function Study({ user, token, onSignOut }) {
 
       <div className="topbar">
         <span className="counter">
-          {view === "deck"
-            ? `${Object.keys(stats).length} seen`
-            : view === "practice"
-              ? `${failedCount} failed`
-              : card
+          {view === "admin"
+            ? "admin"
+            : view === "deck"
+              ? `${Object.keys(stats).length} seen`
+              : view === "practice"
+                ? `${failedCount} failed`
+                : card
                 ? `${doneCount + 1} / ${totalToday} today`
                 : `${doneCount} / ${totalToday} today`}
           {infinite && view === "lesson" && (
@@ -368,11 +371,18 @@ export default function Study({ user, token, onSignOut }) {
               setDay(null);
             }
           }}
+          isAdmin={isAdmin}
+          onAdmin={() => {
+            setMenuOpen(false);
+            setView("admin");
+          }}
           onSignOut={onSignOut}
         />
       )}
 
-      {view === "deck" ? (
+      {view === "admin" ? (
+        <AdminView token={token} />
+      ) : view === "deck" ? (
         <DeckView stats={stats} known={known} onPractice={() => setView("practice")} />
       ) : view === "practice" ? (
         <PracticeView stats={stats} mode={mode} />

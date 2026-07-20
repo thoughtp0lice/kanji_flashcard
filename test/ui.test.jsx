@@ -7,7 +7,7 @@ import App from "../src/App.jsx";
 import { todayStr } from "../src/lesson.js";
 
 // minimal fake backend: routes the app's fetches against an in-memory state
-function mockServer({ state = {}, loginStatus = 200 } = {}) {
+function mockServer({ state = {}, loginStatus = 200, overview = null } = {}) {
   const calls = [];
   vi.stubGlobal(
     "fetch",
@@ -29,6 +29,12 @@ function mockServer({ state = {}, loginStatus = 200 } = {}) {
         });
       }
       if (url === "/api/logout") return respond({ ok: true });
+      if (url === "/api/admin/overview") {
+        return overview ? respond(overview) : respond({ error: "not an admin" }, 403);
+      }
+      if (url.startsWith("/api/admin/users/") && method === "DELETE") {
+        return respond({ ok: true });
+      }
       if (url === "/api/state" && method === "GET") return respond(state);
       if (url === "/api/state" && method === "PUT")
         return respond(JSON.parse(opts.body));
@@ -169,6 +175,47 @@ describe("daily lesson", () => {
     await userEvent.click(await screen.findByRole("button", { name: /keep going/ }));
     expect(await screen.findByLabelText("I know this")).toBeInTheDocument();
     expect(screen.getByText(/stop ∞/)).toBeInTheDocument();
+  });
+});
+
+describe("admin dashboard", () => {
+  const overview = {
+    totalUsers: 2,
+    activeToday: 1,
+    visitsToday: 3,
+    byDay: [{ date: "2026-07-20", visits: 3, active: 1 }],
+    users: [
+      { username: "tester", created: "2026-07-01", lastSeen: "2026-07-20", seen: 5, known: 2, admin: true },
+      { username: "mortal", created: "2026-07-02", lastSeen: null, seen: 0, known: 0, admin: false },
+    ],
+  };
+
+  it("hides the admin entry for regular users", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: PLAN } });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    await userEvent.click(screen.getByLabelText("Settings"));
+    expect(screen.queryByRole("button", { name: "admin" })).not.toBeInTheDocument();
+  });
+
+  it("shows stats and users, and deletes a user", async () => {
+    loggedIn();
+    localStorage.setItem("joyo-kanji-admin", "1");
+    const calls = mockServer({ state: { prefs: PLAN }, overview });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    await userEvent.click(screen.getByLabelText("Settings"));
+    await userEvent.click(screen.getByRole("button", { name: "admin" }));
+    expect(await screen.findByText("visits today")).toBeInTheDocument();
+    expect(screen.getByText("mortal")).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Delete mortal"));
+    expect(
+      calls.some(
+        (c) => c.url === "/api/admin/users/mortal" && c.opts.method === "DELETE"
+      )
+    ).toBe(true);
   });
 });
 

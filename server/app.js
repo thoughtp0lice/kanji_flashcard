@@ -13,7 +13,7 @@ const DEFAULT_STATE = {
 
 const isObject = (x) => typeof x === "object" && x !== null && !Array.isArray(x);
 
-export function createApp(dbPath) {
+export function createApp(dbPath, { adminUsers = [] } = {}) {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     ${dbPath === ":memory:" ? "" : "PRAGMA journal_mode = WAL;"}
@@ -32,6 +32,12 @@ export function createApp(dbPath) {
       username TEXT NOT NULL REFERENCES users(username),
       created  TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS visits (
+      username TEXT NOT NULL,
+      date     TEXT NOT NULL,
+      count    INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (username, date)
+    );
   `);
 
   const q = {
@@ -44,6 +50,25 @@ export function createApp(dbPath) {
     addSession: db.prepare("INSERT INTO sessions VALUES (?, ?, ?)"),
     getSession: db.prepare("SELECT username FROM sessions WHERE token = ?"),
     delSession: db.prepare("DELETE FROM sessions WHERE token = ?"),
+    addVisit: db.prepare(
+      "INSERT INTO visits VALUES (?, ?, 1) ON CONFLICT(username, date) DO UPDATE SET count = count + 1"
+    ),
+    visitsByDay: db.prepare(
+      "SELECT date, SUM(count) AS visits, COUNT(*) AS active FROM visits GROUP BY date ORDER BY date DESC LIMIT 14"
+    ),
+    allUsers: db.prepare("SELECT username, created FROM users ORDER BY created"),
+    lastSeen: db.prepare("SELECT MAX(date) AS d FROM visits WHERE username = ?"),
+    delUserSessions: db.prepare("DELETE FROM sessions WHERE username = ?"),
+    delUserVisits: db.prepare("DELETE FROM visits WHERE username = ?"),
+    delUserState: db.prepare("DELETE FROM state WHERE username = ?"),
+    delUser: db.prepare("DELETE FROM users WHERE username = ?"),
+  };
+
+  const isAdmin = (username) => adminUsers.includes(username);
+  const localDate = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
   const hash = (password, salt) => scryptSync(password, salt, 64).toString("hex");
@@ -89,7 +114,11 @@ export function createApp(dbPath) {
       salt,
       new Date().toISOString()
     );
-    res.json({ token: issueToken(creds.username), username: creds.username });
+    res.json({
+      token: issueToken(creds.username),
+      username: creds.username,
+      admin: isAdmin(creds.username),
+    });
   });
 
   app.post("/api/login", (req, res) => {
@@ -102,7 +131,11 @@ export function createApp(dbPath) {
     if (!timingSafeEqual(attempt, stored)) {
       return res.status(401).json({ error: "wrong password" });
     }
-    res.json({ token: issueToken(creds.username), username: creds.username });
+    res.json({
+      token: issueToken(creds.username),
+      username: creds.username,
+      admin: isAdmin(creds.username),
+    });
   });
 
   // resolves the session token to a username for the routes below
@@ -121,7 +154,53 @@ export function createApp(dbPath) {
   });
 
   app.get("/api/state", auth, (req, res) => {
+    q.addVisit.run(req.username, localDate());
     res.json(readState(req.username));
+  });
+
+  function requireAdmin(req, res, next) {
+    if (!isAdmin(req.username)) {
+      return res.status(403).json({ error: "not an admin" });
+    }
+    next();
+  }
+
+  app.get("/api/admin/overview", auth, requireAdmin, (req, res) => {
+    const users = q.allUsers.all().map((u) => {
+      const state = readState(u.username);
+      return {
+        username: u.username,
+        created: u.created.slice(0, 10),
+        lastSeen: q.lastSeen.get(u.username)?.d ?? null,
+        known: state.known.length,
+        seen: Object.keys(state.stats).length,
+        admin: isAdmin(u.username),
+      };
+    });
+    const byDay = q.visitsByDay.all();
+    const today = byDay.find((d) => d.date === localDate());
+    res.json({
+      totalUsers: users.length,
+      activeToday: today?.active ?? 0,
+      visitsToday: today?.visits ?? 0,
+      byDay,
+      users,
+    });
+  });
+
+  app.delete("/api/admin/users/:name", auth, requireAdmin, (req, res) => {
+    const name = req.params.name;
+    if (name === req.username) {
+      return res.status(400).json({ error: "cannot delete yourself" });
+    }
+    if (!q.getUser.get(name)) {
+      return res.status(404).json({ error: "no such user" });
+    }
+    q.delUserSessions.run(name);
+    q.delUserVisits.run(name);
+    q.delUserState.run(name);
+    q.delUser.run(name);
+    res.json({ ok: true });
   });
 
   // partial update: { known?, prefs?, stats?, days? } — object fields merge

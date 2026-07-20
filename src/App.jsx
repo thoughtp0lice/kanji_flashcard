@@ -29,27 +29,44 @@ function migrateLegacy(user) {
   }
 }
 
+const ADMIN_KEY = "joyo-kanji-admin";
+
 export default function App() {
   const [user, setUser] = useState(() => localStorage.getItem(USER_KEY));
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const [isAdmin, setIsAdmin] = useState(
+    () => localStorage.getItem(ADMIN_KEY) === "1"
+  );
 
-  const handleLogin = (username, newToken) => {
+  const handleLogin = (username, newToken, admin) => {
     migrateLegacy(username);
     localStorage.setItem(USER_KEY, username);
     localStorage.setItem(TOKEN_KEY, newToken);
+    localStorage.setItem(ADMIN_KEY, admin ? "1" : "0");
     setUser(username);
     setToken(newToken);
+    setIsAdmin(!!admin);
   };
 
   const signOut = () => {
     if (token) logout(token);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ADMIN_KEY);
     setUser(null);
     setToken(null);
+    setIsAdmin(false);
   };
 
   if (!user || !token) return <Login onLogin={handleLogin} />;
   // key: switching user remounts the whole study screen with fresh state
-  return <Study key={user} user={user} token={token} onSignOut={signOut} />;
+  return (
+    <Study
+      key={user}
+      user={user}
+      token={token}
+      isAdmin={isAdmin}
+      onSignOut={signOut}
+    />
+  );
 }
