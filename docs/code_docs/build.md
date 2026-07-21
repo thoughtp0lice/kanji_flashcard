@@ -17,7 +17,7 @@ command is not here, assume it does not exist. Architecture of the build is in
 | `npm install` / `npm ci` | install dependencies |
 | `npm run dev` | Vite dev server on `:5173`, proxying `/api` → `:8034` |
 | `npm run server` | API server on `:8034` (dev); serves `dist/` if built |
-| `npm start` | `vite build` then serve app + API from `:8033` |
+| `npm start` | `vite build` then serve app + API from `:52654` |
 | `npm test` | full Vitest suite (scheduler + server + UI) |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run build` | `vite build` only → `dist/` |
@@ -28,7 +28,7 @@ command is not here, assume it does not exist. Architecture of the build is in
 | `make test` | `npm test` |
 | `make clean` | remove `dist/` and `build/` |
 | `make docker` | `docker build -t kanji-flashcard .` |
-| `docker compose up -d` | build + run on `:8033` (data in `kanji-data` volume) |
+| `docker compose up -d` | build + run on `:52654` (data in `kanji-data` volume) |
 
 Typical dev loop: `npm run server &` then `npm run dev`.
 
@@ -36,7 +36,7 @@ Typical dev loop: `npm run server &` then `npm run dev`.
 
 | Var | Default | Effect |
 |---|---|---|
-| `PORT` | 8034 dev / 8033 prod | listen port |
+| `PORT` | 8034 dev / 52654 prod | listen port |
 | `KANJI_ADMINS` | `""` | comma-separated admin usernames |
 | `KANJI_DATA` | `./data` next to the bundle | prod SQLite data directory |
 

@@ -6,7 +6,9 @@ import { fileURLToPath } from "url";
 import { createApp } from "./app.js";
 import assets from "../build/assets.mjs";
 
-const PORT = process.env.PORT || 8033;
+// default port spells KANJI on a phone keypad (5-2-6-5-4); 52654 is in the
+// IANA dynamic/private range (49152-65535), so it is not a reserved port
+const PORT = process.env.PORT || 52654;
 const DATA_DIR =
   process.env.KANJI_DATA || join(dirname(fileURLToPath(import.meta.url)), "data");
 
