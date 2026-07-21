@@ -43,14 +43,14 @@ npm run server &
 npm run dev
 
 # production: build once, serve app + API from one port
-npm run start          # http://localhost:8033
+npm run start          # http://localhost:52654
 ```
 
 ### Single-file production build
 
 ```sh
 make build             # -> build/kanji-server.mjs (frontend embedded)
-make run               # build + run          [PORT=8033] [KANJI_ADMINS=name]
+make run               # build + run          [PORT=52654] [KANJI_ADMINS=name]
 ```
 
 `build/kanji-server.mjs` is fully self-contained — copy it anywhere and run
@@ -60,11 +60,11 @@ itself (override with `KANJI_DATA=/path`).
 ### Docker
 
 ```sh
-docker compose up -d                    # http://localhost:8033
+docker compose up -d                    # http://localhost:52654
 KANJI_ADMINS=alice docker compose up -d # with an admin account
 ```
 
-Or without compose: `make docker && docker run -p 8033:8033 -v kanji-data:/data kanji-flashcard`.
+Or without compose: `make docker && docker run -p 52654:52654 -v kanji-data:/data kanji-flashcard`.
 User data persists in the `kanji-data` volume.
 
 ### Admin dashboard

@@ -50,9 +50,9 @@ build output ever moves, delete the old path in the same change (`INV-BUILD-2`).
 | Mode | Command | Port | Serves frontend via |
 |---|---|---|---|
 | dev | `npm run server` + `npm run dev` | 5173 (Vite) → 8034 (API, `/api` proxied) | Vite dev server |
-| single-port dev/prod | `npm start` | 8033 | `express.static(dist/)` in `index.js` |
-| single-file | `make run` / `node build/kanji-server.mjs` | 8033 (`PORT`) | embedded `assets.mjs` |
-| Docker | `docker compose up -d` | 8033 | embedded (multi-stage `Dockerfile`) |
+| single-port dev/prod | `npm start` | 52654 | `express.static(dist/)` in `index.js` |
+| single-file | `make run` / `node build/kanji-server.mjs` | 52654 (`PORT`) | embedded `assets.mjs` |
+| Docker | `docker compose up -d` | 52654 | embedded (multi-stage `Dockerfile`) |
 
 The `Dockerfile` runs `npm run bundle` in a build stage and copies only
 `build/kanji-server.mjs` into a slim runtime image (`node:24-slim`, non-root,

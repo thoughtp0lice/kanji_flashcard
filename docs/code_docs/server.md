@@ -17,7 +17,7 @@ an admin dashboard, and (in production) serving the built frontend.
 |---|---|
 | `server/app.js` | `createApp(dbPath, {adminUsers})` → Express app (all routes, schema, queries) |
 | `server/index.js` | dev/`npm start` entry: port 8034 (or `PORT`), data in `server/data/`, serves `dist/` if present |
-| `server/prod.js` | bundled entry: port 8033, data in `KANJI_DATA` or `./data`, serves embedded assets |
+| `server/prod.js` | bundled entry: port 52654, data in `KANJI_DATA` or `./data`, serves embedded assets |
 
 `createApp` opens the DB, runs `CREATE TABLE IF NOT EXISTS` (+ WAL for on-disk
 DBs), prepares all statements once into `q`, and registers routes. There is **no
@@ -95,7 +95,7 @@ per-user `{created, lastSeen, known, seen, admin}`. Delete refuses self
 
 | Env | Default | Used by |
 |---|---|---|
-| `PORT` | 8034 (dev) / 8033 (prod) | both entries |
+| `PORT` | 8034 (dev) / 52654 (prod) | both entries |
 | `KANJI_ADMINS` | `""` | admin allow-list |
 | `KANJI_DATA` | `./data` next to the bundle | prod data dir only |
 

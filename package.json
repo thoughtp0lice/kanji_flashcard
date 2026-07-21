@@ -12,7 +12,7 @@
     "check": "node scripts/check_repo.mjs",
     "bundle": "vite build && node scripts/embed-assets.mjs && node scripts/bundle.mjs",
     "server": "node server/index.js",
-    "start": "vite build && PORT=8033 node server/index.js"
+    "start": "vite build && PORT=52654 node server/index.js"
   },
   "dependencies": {
     "express": "^5.2.1",
