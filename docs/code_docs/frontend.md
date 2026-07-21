@@ -22,7 +22,7 @@ screen and all state orchestration (`Study.jsx`), the presentational components
 | `src/Study.jsx` | state owner + router across `lesson`/`deck`/`practice`/`admin` views |
 | `src/components/Login.jsx` | username/password form, calls `login`/`register` |
 | `src/components/Setup.jsx` | first-run + change-plan: start grade, new/day, review cap |
-| `src/components/Flashcard.jsx` | the card (front/back flip, action buttons) |
+| `src/components/Flashcard.jsx` | the card (front/back flip, action buttons; on ≥900px screens the buttons move out to side rails) |
 | `src/components/DeckView.jsx` | seen-kanji grid, sort/filter, detail modal |
 | `src/components/PracticeView.jsx` | free flip through failed kanji (no scheduling) |
 | `src/components/SettingsSheet.jsx` | mode toggle, plan summary, reset, admin, sign-out |
@@ -111,6 +111,12 @@ data and it re-syncs on the next change or load. (`INV-SYNC-3`)
 - **`Flashcard` flip lag:** the shown card lags `card` by 230 ms when navigating
   away from a flipped card so the flip-back animation finishes before the answer
   swaps out.
+- **Desktop side rails:** `Flashcard` watches `matchMedia("(min-width: 900px)")`.
+  On wide screens the action buttons render once into `.side-rail` elements
+  flanking the card (larger targets, card keeps its phone shape) instead of
+  inside the card faces; below 900px the mobile DOM is unchanged. jsdom has no
+  real `matchMedia`, so tests default to the mobile DOM unless they stub it
+  (see the "desktop layout" block in `test/ui.test.jsx`).
 
 ## Tests
 

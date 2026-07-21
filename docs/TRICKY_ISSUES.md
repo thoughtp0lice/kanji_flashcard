@@ -56,3 +56,33 @@ verified facts (commands, versions, observed output).
 
 - **See also:** [`code_docs/build.md`](code_docs/build.md) § Node 26 test
   caveat; `AGENTS.md` § Footguns.
+
+---
+
+# Resolved
+
+## Auto cross-axis margin collapsed the flashcard to 0px on desktop viewports
+
+- **Status:** Resolved 2026-07-20 (fix in `src/index.css`, desktop media query).
+- **First observed:** 2026-07-20; present since the original app rewrite
+  (`e874d6c`, which introduced the media query). Went unnoticed because the app
+  was used on phones, where the query never matches.
+- **Symptom:** on viewports ≥ 520px wide **and** ≥ 800px tall (any normal
+  desktop window), the flashcard did not render at all and the topbar/action
+  buttons bunched up mid-screen. Phones (query doesn't match) were unaffected,
+  so mobile looked fine while desktop looked broken.
+- **Root cause:** the large-screen media query set `margin: auto 0` on
+  `.card-scene` to center it vertically inside `.stage` (a flex row). Per the
+  flexbox spec, an **auto cross-axis margin disables `align-items: stretch`**,
+  so the item's height falls back to its content height — and `.card`'s two
+  faces are `position: absolute` (for the 3-D flip), contributing **zero**
+  content height. Net height: 0px, card invisible. The old `max-height: 680px`
+  only ever capped a height that no longer existed.
+- **Fix:** give `.card-scene` a definite height in the media query instead of
+  relying on stretch: `height: min(680px, 100%)` (100% resolves because
+  `.stage` gets a definite height from the `.app` flex column at `100dvh`).
+  Verified in the rebuilt Docker image: the served minified CSS contains
+  `card-scene{height:min(680px,100%);margin:auto 0}`.
+- **Lesson:** jsdom tests cannot catch this class of bug — there is no layout
+  engine, so a 0-height element still "renders" in tests. Layout changes need
+  an eyeball on both a phone-sized and a desktop-sized viewport.

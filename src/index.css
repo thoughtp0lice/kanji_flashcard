@@ -218,6 +218,14 @@ button {
   padding: 0.75rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
 }
 
+/* wrapper around the card and (on desktop) the side rails; on mobile it is
+   a transparent pass-through so the card fills the stage as before */
+.card-zone {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
 .card-scene {
   flex: 1;
   min-height: 0;
@@ -828,11 +836,59 @@ button {
 
 /* larger screens: keep the card phone-shaped, centered */
 @media (min-height: 800px) and (min-width: 520px) {
+  .app {
+    max-width: 560px;
+  }
   .stage {
     padding: 1rem 1rem 2rem;
   }
   .card-scene {
-    max-height: 680px;
+    /* explicit height: `margin: auto 0` disables flex stretch, and the
+       absolutely-positioned card faces contribute no content height, so
+       without this the card collapses to 0px (invisible on desktop) */
+    height: min(680px, 100%);
     margin: auto 0;
+  }
+}
+
+/* desktop: the card keeps its phone shape, but the controls (rendered into
+   .side-rail by Flashcard when `(min-width: 900px)` matches) fan out beside
+   it and grow. The rails flank the card symmetrically, so it stays centered
+   while the topbar spans the full, wider app column. */
+@media (min-width: 900px) {
+  .app {
+    max-width: 1100px;
+  }
+  .card-zone {
+    gap: 2.5rem;
+    justify-content: center;
+  }
+  .card-scene {
+    flex: 0 1 480px;
+    height: min(680px, 100%);
+    margin: auto 0;
+  }
+  .side-rail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+  }
+  .side-rail .round-btn {
+    width: 5.2rem;
+    height: 5.2rem;
+    font-size: 2rem;
+  }
+  .side-rail .next-btn {
+    flex: none;
+    padding: 1rem 2.2rem;
+    font-size: 1.1rem;
+    white-space: nowrap;
+  }
+  /* no in-card action bar on desktop — restore the back face's bottom inset */
+  .back-scroll {
+    padding-bottom: 1.4rem;
   }
 }

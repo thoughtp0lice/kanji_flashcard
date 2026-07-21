@@ -200,6 +200,37 @@ describe("daily lesson", () => {
   });
 });
 
+describe("desktop layout", () => {
+  // jsdom has no matchMedia, so Flashcard defaults to the mobile DOM in every
+  // other test; stubbing it wide flips the controls out into the side rails
+  const stubDesktop = () =>
+    vi.stubGlobal("matchMedia", (query) => ({
+      matches: query === "(min-width: 900px)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+  it("moves the controls out of the card into the side rails", async () => {
+    stubDesktop();
+    loggedIn();
+    mockServer({ state: { prefs: PLAN } });
+    const { container } = render(<App />);
+    const check = await screen.findByLabelText("I know this");
+    const rails = container.querySelectorAll(".side-rail");
+    expect(rails).toHaveLength(2);
+    expect(rails[0]).toContainElement(screen.getByLabelText("Don't know"));
+    expect(rails[1]).toContainElement(check);
+    // no in-card action bars on desktop
+    expect(container.querySelector(".card .front-actions")).toBeNull();
+    expect(container.querySelector(".card .back-actions")).toBeNull();
+    // check → confirm still advances the day from the rails
+    await userEvent.click(check);
+    await userEvent.click(await screen.findByRole("button", { name: "✓ next" }));
+    expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
+  });
+});
+
 describe("admin dashboard", () => {
   const overview = {
     totalUsers: 2,
