@@ -15,5 +15,6 @@ jobs:
           node-version: 24 # node:sqlite needed by the backend
           cache: npm
       - run: npm ci
+      - run: npm run check # repository contract checks (scripts/check_repo.mjs)
       - run: npm run build
       - run: npm test

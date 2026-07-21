@@ -5,3 +5,8 @@ server/data
 .git
 .github
 *.md
+docs
+.agents
+.claude
+.codex
+scripts/check_repo.mjs

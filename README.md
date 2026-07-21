@@ -105,6 +105,25 @@ CI (GitHub Actions) builds and runs the full suite on every push and PR.
 - `server/app.js` — Express API (`createApp(dbPath)`, tested in-memory)
 - `test/` — scheduler, server, and UI tests
 
+### Contributor & agent docs
+
+Architecture, invariants, and the commands live under `docs/`:
+
+- [`AGENTS.md`](AGENTS.md) — root instructions for coding agents (Claude Code,
+  Codex); `CLAUDE.md` symlinks to it.
+- [`docs/code_docs/README.md`](docs/code_docs/README.md) — system map and the
+  per-part architecture docs.
+- [`docs/code_docs/build.md`](docs/code_docs/build.md) — authoritative commands
+  and verified status; [`invariants.md`](docs/code_docs/invariants.md) — the
+  `INV-*` contract catalog (`npm run check` enforces the structural ones).
+- [`docs/TRICKY_ISSUES.md`](docs/TRICKY_ISSUES.md) — durable friction log
+  (incl. the Node 26 `localStorage` test caveat — the full UI suite needs
+  Node 24, which CI uses).
+
+> **Running tests locally on Node ≥ 26?** The jsdom UI suite fails on a Node 26
+> quirk, not a real bug. Use `npm test -- test/lesson.test.js test/server.test.js`
+> or run the full suite on Node 24. See `docs/TRICKY_ISSUES.md`.
+
 ## Data sources
 
 - Kanji list: [Wikipedia — List of jōyō kanji](https://en.wikipedia.org/wiki/List_of_j%C5%8Dy%C5%8D_kanji)

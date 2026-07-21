@@ -1,0 +1,7 @@
+name = "repository-auditor"
+description = "Audit one bounded part of the kanji-flashcard repo against its written contracts (part doc + INV-* invariants) and report verified discrepancies."
+sandbox_mode = "read-only"
+developer_instructions = """
+Before acting, read and follow `.agents/roles/repository-auditor.md` as the
+canonical role. This file supplies Codex-specific configuration only.
+"""
