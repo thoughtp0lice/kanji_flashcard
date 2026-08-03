@@ -260,6 +260,23 @@ describe("admin", () => {
     expect(body.users.find((u) => u.username === "root").admin).toBe(true);
   });
 
+  it("excludes removal tombstones from the seen count", async () => {
+    await adminApi("/api/state", {
+      method: "PUT",
+      token: userToken,
+      body: {
+        stats: {
+          1: { seen: "2026-07-20", fails: {} },
+          2: { removed: "2026-07-21" },
+        },
+      },
+    });
+    const body = await (
+      await adminApi("/api/admin/overview", { token: rootToken })
+    ).json();
+    expect(body.users.find((u) => u.username === "mortal").seen).toBe(1);
+  });
+
   it("refuses to delete yourself", async () => {
     const res = await adminApi("/api/admin/users/root", {
       method: "DELETE",

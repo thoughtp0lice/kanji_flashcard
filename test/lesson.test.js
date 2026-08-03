@@ -214,4 +214,24 @@ describe("generateDaily", () => {
     expect(d.date).toBe(todayStr());
     expect(d.done).toEqual([]);
   });
+
+  it("never reviews a removed card, even with overdue SRS state", () => {
+    const today = todayStr();
+    const stats = {
+      // a tombstone wins over any scheduling fields sitting next to it
+      5: { seen: "2026-07-01", fails: { "2026-07-05": 3 }, due: addDays(today, -2), removed: "2026-07-10" },
+    };
+    const d = generateDaily({ ...base, startGrade: "S", stats, newPerDay: 0, reviewLimit: 100 });
+    expect(d.queue).toHaveLength(0);
+  });
+
+  it("lets a removed card be picked as a new card again", () => {
+    const stats = {};
+    for (const k of KANJI.filter((k) => k.grade === "S"))
+      stats[k.id] = { seen: "2026-07-01", fails: {}, interval: 100, due: "2027-01-01" };
+    const removedId = KANJI.find((k) => k.grade === "S").id;
+    stats[removedId] = { removed: "2026-07-10" };
+    const d = generateDaily({ ...base, startGrade: "S", stats, newPerDay: 10, reviewLimit: 0 });
+    expect(d.queue).toEqual([removedId]);
+  });
 });

@@ -173,7 +173,8 @@ export function createApp(dbPath, { adminUsers = [] } = {}) {
         created: u.created.slice(0, 10),
         lastSeen: q.lastSeen.get(u.username)?.d ?? null,
         known: state.known.length,
-        seen: Object.keys(state.stats).length,
+        // removed cards carry a { removed: date } tombstone — not "seen"
+        seen: Object.values(state.stats).filter((s) => !s?.removed).length,
         admin: isAdmin(u.username),
       };
     });

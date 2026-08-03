@@ -14,9 +14,17 @@ const app = createApp(join(DATA_DIR, "kanji.db"), {
   adminUsers: (process.env.KANJI_ADMINS || "").split(",").filter(Boolean),
 });
 
-// serve the production build when it exists (single-port deployment)
+// serve the production build when it exists (single-port deployment);
+// unknown extension-less paths fall back to index.html so the client-routed
+// views (/deck, /practice, /admin) deep-link
 if (existsSync(DIST)) {
   app.use(express.static(DIST));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api/") || req.path.includes(".")) {
+      return next();
+    }
+    res.sendFile(join(DIST, "index.html"));
+  });
 }
 
 app.listen(PORT, () => {

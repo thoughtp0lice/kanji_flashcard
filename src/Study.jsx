@@ -10,6 +10,7 @@ import AdminView from "./components/AdminView.jsx";
 import {
   GRADE_ORDER,
   generateDaily,
+  isRemoved,
   onFail,
   onSuccess,
   todayStr,
@@ -18,15 +19,51 @@ import {
 
 export const BY_ID = new Map(KANJI.map((k) => [k.id, k]));
 
+// client-side routing: each view owns a URL so back/forward and deep links
+// work; both server entries fall back to index.html for these paths
+const VIEW_PATHS = {
+  lesson: "/",
+  deck: "/deck",
+  practice: "/practice",
+  admin: "/admin",
+};
+
+function viewFromPath(path) {
+  const match = Object.entries(VIEW_PATHS).find(([, p]) => p === path);
+  return match ? match[0] : "lesson";
+}
+
+// latest date the user demonstrably touched a card: its seen date or any
+// fail date (successes only move `due`, which is not an activity date)
+function lastActivity(st) {
+  return (
+    [st.seen, ...Object.keys(st.fails || {})].filter(Boolean).sort().at(-1) ||
+    ""
+  );
+}
+
 // union server + local stats: max fail count per date, earliest seen date,
 // and whichever side has SRS scheduling info (prefer the later due date —
-// it reflects the most recent answer)
-function mergeStats(local, server) {
+// it reflects the most recent answer). A removal tombstone beats live state
+// unless the card shows activity *after* the removal date (it was
+// re-learned later); on a same-day tie the removal wins — it's the
+// deliberate act. Exported for test/ui.test.jsx.
+export function mergeStats(local, server) {
   const out = { ...server };
   for (const [id, ls] of Object.entries(local)) {
     const sv = out[id];
     if (!sv) {
       out[id] = ls;
+      continue;
+    }
+    if (isRemoved(ls) || isRemoved(sv)) {
+      if (isRemoved(ls) && isRemoved(sv)) {
+        out[id] = { removed: [ls.removed, sv.removed].sort().at(-1) };
+      } else {
+        const tomb = isRemoved(ls) ? ls : sv;
+        const live = isRemoved(ls) ? sv : ls;
+        out[id] = lastActivity(live) > tomb.removed ? live : tomb;
+      }
       continue;
     }
     const fails = { ...sv.fails };
@@ -69,13 +106,41 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     return d?.date === todayStr() ? d : null;
   });
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState("lesson"); // 'lesson' | 'deck' | 'practice'
+  // 'lesson' | 'deck' | 'practice' | 'admin' — seeded from the URL
+  const [view, setView] = useState(() => viewFromPath(window.location.pathname));
   const [infinite, setInfinite] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [flipped, setFlipped] = useState(false);
-  // 'check' after ✓: the answer is showing, waiting for confirm / demote
+  // what the answer side is offering:
+  // 'check' after ✓ — confirm ("✓ next") or demote ("✕ actually no")
+  // 'peek' after a manual flip — "✓ knew it" or "✕ didn't know"
+  // null — fail already recorded (cross/demote), just "next →"
   const [pending, setPending] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // switch views, keeping the URL in sync
+  const navigate = (next) => {
+    const path = VIEW_PATHS[next] ?? "/";
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, "", path);
+    }
+    setView(next);
+  };
+
+  // browser back/forward
+  useEffect(() => {
+    const onPop = () => setView(viewFromPath(window.location.pathname));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // a non-admin deep-linking to /admin lands on the lesson instead
+  useEffect(() => {
+    if (view === "admin" && !isAdmin) {
+      window.history.replaceState(null, "", "/");
+      setView("lesson");
+    }
+  }, [view, isAdmin]);
 
   const saveKnown = (next) => {
     setKnown(next);
@@ -185,14 +250,43 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     () => Object.values(stats).filter((st) => totalFails(st) > 0).length,
     [stats]
   );
+  const seenCount = useMemo(
+    () => Object.values(stats).filter((st) => !isRemoved(st)).length,
+    [stats]
+  );
   const hasMore = useMemo(() => {
     const today = todayStr();
     const span = new Set(GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade)));
     return (
-      KANJI.some((k) => span.has(k.grade) && !stats[k.id] && !known.has(k.id)) ||
+      KANJI.some(
+        (k) =>
+          span.has(k.grade) &&
+          (!stats[k.id] || isRemoved(stats[k.id])) &&
+          !known.has(k.id)
+      ) ||
       Object.values(stats).some((st) => st.due && st.due <= today)
     );
   }, [stats, known, startGrade]);
+
+  // answering a card whose stat is a removal tombstone starts over from a
+  // blank slate — the tombstone must not leak into the new SRS state
+  const freshOrExisting = (id, t) =>
+    !stats[id] || isRemoved(stats[id]) ? { seen: t, fails: {} } : stats[id];
+
+  // un-enroll a card: replace its stats with a dated tombstone (a plain
+  // delete would be resurrected from another device's copy on the next
+  // merge), forget it as known, and drop it from today's queue
+  const removeCard = (id) => {
+    saveStats({ ...stats, [id]: { removed: todayStr() } });
+    if (known.has(id)) {
+      const next = new Set(known);
+      next.delete(id);
+      saveKnown(next);
+    }
+    if (day?.queue.includes(id)) {
+      saveDay({ ...day, queue: day.queue.filter((q) => q !== id) });
+    }
+  };
 
   // ✓ — "I think I know it": show the answer first; nothing is recorded
   // until the user confirms or demotes
@@ -206,7 +300,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   const confirmCheck = () => {
     if (!card) return;
     const t = todayStr();
-    const st = stats[card.id] ?? { seen: t, fails: {} };
+    const st = freshOrExisting(card.id, t);
     saveStats({ ...stats, [card.id]: onSuccess(st, t) });
     saveKnown(new Set(known).add(card.id));
     saveDay({
@@ -220,7 +314,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
 
   const recordFail = () => {
     const t = todayStr();
-    const st = stats[card.id] ?? { seen: t, fails: {} };
+    const st = freshOrExisting(card.id, t);
     saveStats({ ...stats, [card.id]: onFail(st, t) });
     if (known.has(card.id)) {
       const next = new Set(known);
@@ -246,6 +340,18 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     setFlipped(true);
   };
 
+  // tap/space flip: peeking at the answer still offers know / don't know
+  const flip = () => {
+    if (!card) return;
+    if (flipped) {
+      setFlipped(false);
+      if (pending === "peek") setPending(null);
+    } else {
+      setFlipped(true);
+      if (!pending) setPending("peek");
+    }
+  };
+
   // move the current card to the end of today's queue
   const skip = () => {
     setPending(null);
@@ -264,14 +370,14 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
         // deck/practice views handle their own keys; Escape returns to the lesson
         if (e.key === "Escape") {
           setMenuOpen(false);
-          setView("lesson");
+          navigate("lesson");
         }
         return;
       }
       switch (e.key) {
         case " ":
           e.preventDefault();
-          setFlipped((f) => !f);
+          flip();
           break;
         case "ArrowRight":
           skip();
@@ -281,12 +387,12 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           else cross();
           break;
         case "2":
-          if (pending === "check") confirmCheck();
+          if (pending === "check" || pending === "peek") confirmCheck();
           else check();
           break;
         case "Escape":
           setMenuOpen(false);
-          setView("lesson");
+          navigate("lesson");
           break;
       }
     };
@@ -317,6 +423,26 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           setNewPerDay(n);
           setReviewLimit(r);
           setShowSetup(false);
+          // today's deck was built under the old plan — rebuild it now,
+          // keeping what's already done and any fails still owed a
+          // same-day retry
+          const today = todayStr();
+          const fresh = generateDaily({
+            all: KANJI,
+            newPerDay: n,
+            reviewLimit: r,
+            startGrade: g,
+            stats,
+            known,
+          });
+          const retries = (day?.queue ?? []).filter(
+            (id) => stats[id]?.fails?.[today]
+          );
+          saveDay({
+            ...fresh,
+            queue: [...new Set([...retries, ...fresh.queue])],
+            done: day?.done ?? [],
+          });
         }}
         onCancel={needsSetup ? null : () => setShowSetup(false)}
       />
@@ -336,7 +462,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           {view === "admin"
             ? "admin"
             : view === "deck"
-              ? `${Object.keys(stats).length} seen`
+              ? `${seenCount} seen`
               : view === "practice"
                 ? `${failedCount} failed`
                 : card
@@ -351,7 +477,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
         <span className="topbar-actions">
           <button
             className={`menu-btn${view === "deck" ? " open" : ""}`}
-            onClick={() => setView((v) => (v === "deck" ? "lesson" : "deck"))}
+            onClick={() => navigate(view === "deck" ? "lesson" : "deck")}
             aria-label="Seen kanji"
             title="Seen kanji"
           >
@@ -401,16 +527,21 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           isAdmin={isAdmin}
           onAdmin={() => {
             setMenuOpen(false);
-            setView("admin");
+            navigate("admin");
           }}
           onSignOut={onSignOut}
         />
       )}
 
       {view === "admin" ? (
-        <AdminView token={token} />
+        <AdminView token={token} onHome={() => navigate("lesson")} />
       ) : view === "deck" ? (
-        <DeckView stats={stats} known={known} onPractice={() => setView("practice")} />
+        <DeckView
+          stats={stats}
+          known={known}
+          onPractice={() => navigate("practice")}
+          onRemove={removeCard}
+        />
       ) : view === "practice" ? (
         <PracticeView stats={stats} mode={mode} />
       ) : (
@@ -421,7 +552,8 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
               mode={mode}
               flipped={flipped}
               pendingCheck={pending === "check"}
-              onFlip={() => setFlipped((f) => !f)}
+              pendingPeek={pending === "peek"}
+              onFlip={flip}
               onCheck={check}
               onCross={cross}
               onConfirm={confirmCheck}

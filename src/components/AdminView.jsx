@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminDeleteUser, adminOverview } from "../api.js";
 
-export default function AdminView({ token }) {
+export default function AdminView({ token, onHome }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -28,11 +28,23 @@ export default function AdminView({ token }) {
     }
   };
 
-  if (error) return <main className="admin"><p className="empty-msg">{error}</p></main>;
-  if (!data) return <main className="admin"><p className="empty-msg">loading…</p></main>;
+  const homeBtn = (
+    <button
+      className="ghost-btn admin-home"
+      onClick={onHome}
+      title="Back to today's lesson (Esc)"
+      aria-label="Home"
+    >
+      ← home
+    </button>
+  );
+
+  if (error) return <main className="admin">{homeBtn}<p className="empty-msg">{error}</p></main>;
+  if (!data) return <main className="admin">{homeBtn}<p className="empty-msg">loading…</p></main>;
 
   return (
     <main className="admin">
+      {homeBtn}
       <div className="admin-stats">
         <div className="admin-stat">
           <span className="admin-stat-num">{data.totalUsers}</span>

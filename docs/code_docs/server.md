@@ -17,7 +17,7 @@ an admin dashboard, and (in production) serving the built frontend.
 |---|---|
 | `server/app.js` | `createApp(dbPath, {adminUsers})` → Express app (all routes, schema, queries) |
 | `server/index.js` | dev/`npm start` entry: port 8034 (or `PORT`), data in `server/data/`, serves `dist/` if present |
-| `server/prod.js` | bundled entry: port 52654, data in `KANJI_DATA` or `./data`, serves embedded assets |
+| `server/prod.js` | bundled entry: port 52654, data in `KANJI_DATA` or `./data`, serves embedded assets; unknown extension-less GET paths (not `/api/*`) fall back to `index.html` for the client-routed views (`/deck`, `/practice`, `/admin`) — `server/index.js` does the same over `dist/` |
 
 `createApp` opens the DB, runs `CREATE TABLE IF NOT EXISTS` (+ WAL for on-disk
 DBs), prepares all statements once into `q`, and registers routes. There is **no
@@ -36,6 +36,10 @@ migration.
 The `state.data` blob shape (defaults in `DEFAULT_STATE`):
 `{ known: number[], prefs: {mode,...}, stats: {[id]:stat}, days: {[date]:day} }`.
 `readState` always spreads over `DEFAULT_STATE`, so missing keys are backfilled.
+A `stat` is either a live SRS record or a removal tombstone
+`{ removed: "YYYY-MM-DD" }` (see [lesson.md](lesson.md)); the server treats
+both as opaque values — only the client interprets them. The admin overview's
+`seen` count skips tombstones.
 
 ## Routes
 

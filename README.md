@@ -11,7 +11,8 @@ cross-device sync.
 - **Daily decks** — pick a starting school grade and a pace (new kanji/day,
   max reviews/day); each day blends new kanji with due reviews. New cards
   favor the lowest unfinished grade and blend higher grades in as you
-  progress.
+  progress. Changing the plan rebuilds today's deck on the spot (finished
+  cards stay finished).
 - **Spaced repetition** — SM-2-style scheduling: a ✓ grows a card's interval
   ~×2.5 (4 → 10 → 25 → 63 days…), a ✗ cuts it to ~20% and brings the card
   back tomorrow. Yesterday's misses are always in today's deck, even past
@@ -20,7 +21,9 @@ cross-device sync.
   radical, old forms, and up to 3 common example words per kanji
   (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
 - **Seen-kanji browser** — grid of everything you've studied, sortable by
-  most-failed, filterable to failed-only, with detail popups.
+  most-failed, filterable to failed-only, with detail popups. From a popup
+  you can remove a card from your deck entirely — it stops coming up for
+  review (on every device) until you learn it fresh again.
 - **Practice mode** — freely flip through your failed kanji between days
   without touching the schedule.
 - **Infinite mode** — keep drawing capped-out reviews and extra new cards

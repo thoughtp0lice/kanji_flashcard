@@ -704,6 +704,14 @@ button {
   z-index: 10;
 }
 
+.modal .remove-btn {
+  align-self: flex-start;
+}
+
+.modal .remove-btn:hover {
+  color: var(--red);
+}
+
 .modal {
   width: 100%;
   max-width: 380px;
@@ -729,6 +737,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.admin-home {
+  align-self: flex-start;
+  font-size: 0.85rem;
 }
 
 .admin-stats {
@@ -851,39 +864,42 @@ button {
   }
 }
 
-/* desktop: the card keeps its phone shape, but the controls (rendered into
-   .side-rail by Flashcard when `(min-width: 900px)` matches) fan out beside
-   it and grow. The rails flank the card symmetrically, so it stays centered
-   while the topbar spans the full, wider app column. */
+/* desktop: the card keeps its phone shape; the controls (rendered into
+   .control-bar by Flashcard when `(min-width: 900px)` matches) sit beneath
+   it, larger and fanned out, while the topbar spans the wider app column. */
 @media (min-width: 900px) {
   .app {
     max-width: 1100px;
   }
   .card-zone {
-    gap: 2.5rem;
-    justify-content: center;
-  }
-  .card-scene {
-    flex: 0 1 480px;
-    height: min(680px, 100%);
-    margin: auto 0;
-  }
-  .side-rail {
-    flex: 1;
-    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.2rem;
+    gap: 1.8rem;
   }
-  .side-rail .round-btn {
+  .card-scene {
+    flex: 0 1 680px;
+    width: min(480px, 100%);
+    min-height: 0;
+    /* neutralize the 520px-query centering — the column layout handles it */
+    height: auto;
+    margin: 0;
+  }
+  .control-bar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6rem;
+  }
+  .control-bar .round-btn {
     width: 5.2rem;
     height: 5.2rem;
     font-size: 2rem;
   }
-  .side-rail .next-btn {
+  .control-bar .next-btn {
     flex: none;
-    padding: 1rem 2.2rem;
+    padding: 1rem 2.6rem;
     font-size: 1.1rem;
     white-space: nowrap;
   }

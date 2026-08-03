@@ -17,6 +17,7 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 | INV-SCHED-3 | Interval never exceeds `MAX_INTERVAL` (365). | `onSuccess` | `test/lesson.test.js` "caps the interval at a year" |
 | INV-SCHED-4 | All dates are local `YYYY-MM-DD`; never parse a day key with `new Date("YYYY-MM-DD")`. | `todayStr`/`addDays`/`fmt`; `localDate()` in `server/app.js` | Review + `test/lesson.test.js` "crosses month and year boundaries"; grep check in `check_repo.mjs` |
 | INV-SCHED-5 | `failScore` excludes today's fails and decays 0.6×/day for ordering only. | `failScore` | `test/lesson.test.js` "weights yesterday fully…", "excludes today's fails" |
+| INV-SCHED-6 | A removed card (`{removed: date}` tombstone) is never selected as a review and is eligible as a new pick again. | `isRemoved`, `generateDaily` | `test/lesson.test.js` "never reviews a removed card…", "lets a removed card be picked as a new card again" |
 
 ## State & sync (`src/api.js`, `src/Study.jsx`, `server/app.js`)
 
@@ -25,8 +26,9 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 | INV-STATE-1 | `PUT /api/state` replaces+dedupes `known`; shallow-merges `prefs`/`stats`/`days` per top-level key; rejects wrong shapes with 400. | `server/app.js` `PUT /api/state` | `test/server.test.js` "replaces and dedupes known", "merges … shallowly", "merges days per date…", "merges stats per kanji", "validates payload shapes" |
 | INV-STATE-2 | Users are isolated: one user's state is never returned to another. | `server/app.js` `auth` + per-username rows | `test/server.test.js` "isolates users from each other" |
 | INV-SYNC-1 | Every progress mutation writes `localStorage` synchronously and unconditionally; the server push is best-effort. | `saveKnown`/`saveStats`/`saveDay`, `pushState` | Review; `test/ui.test.jsx` day-loop tests (persist across reload) |
-| INV-SYNC-2 | The load-time merge never loses local progress: `known` unions, `stats` takes max fails / earliest seen / later-due. | `mergeStats` + load effect in `Study.jsx` | Review; guarded by `test/ui.test.jsx` session tests |
+| INV-SYNC-2 | The load-time merge never loses local progress: `known` unions, `stats` takes max fails / earliest seen / later-due. | `mergeStats` + load effect in `Study.jsx` | `test/ui.test.jsx` "mergeStats" block; session tests |
 | INV-SYNC-3 | `pushState` is debounced, coalesces partials, and resets pending state on token change (no cross-user writes). | `src/api.js` `pushState` | Review of `pushState`; token-swap branch |
+| INV-SYNC-4 | A removal tombstone survives merges against stale live state: it wins unless the live side's `seen`/fail activity is strictly after the removal date (re-learned); two tombstones keep the later date. | `mergeStats` in `Study.jsx` | `test/ui.test.jsx` "lets a removal tombstone beat stale live state…", "revives a card re-learned after its removal", "keeps the later of two tombstones" |
 
 ## Auth & admin (`server/app.js`)
 
@@ -66,8 +68,9 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 _None known as of 2026-07-20._ Gaps below are explicitly **not** covered by an
 automated check (so their absence is not mistaken for coverage):
 
-- `INV-SYNC-1`/`INV-SYNC-2`/`INV-SYNC-3` and `INV-AUTH-1` (hashing scheme) are
-  **review-enforced**, not asserted by a dedicated unit test.
+- `INV-SYNC-1`/`INV-SYNC-3` and `INV-AUTH-1` (hashing scheme) are
+  **review-enforced**, not asserted by a dedicated unit test. (`INV-SYNC-2` and
+  `INV-SYNC-4` are now unit-tested via the exported `mergeStats`.)
 - `INV-SCHED-4`'s "never `new Date("YYYY-MM-DD")`" is a grep heuristic; a novel
   UTC-parsing pattern could slip past it.
 - `EXAMPLES` keys are not required to exist in `KANJI` (external data) — checked

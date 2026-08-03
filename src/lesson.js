@@ -52,6 +52,13 @@ export function onFail(stat, today) {
   return { ...stat, fails, interval, due: addDays(today, 1) };
 }
 
+// a removed card carries a dated tombstone instead of SRS state:
+// { removed: "YYYY-MM-DD" }. It never comes up as a review and is
+// eligible to be picked as a new card again.
+export function isRemoved(stat) {
+  return Boolean(stat?.removed);
+}
+
 // pre-SRS entries have no `due`; derive one from their last fail
 function dueOf(stat) {
   if (stat.due) return stat.due;
@@ -124,7 +131,7 @@ export function generateDaily({
   // included, the rest fill up to reviewLimit ordered by how badly they're
   // failing (recency-weighted) and how overdue they are
   const due = all
-    .filter((k) => stats[k.id])
+    .filter((k) => stats[k.id] && !isRemoved(stats[k.id]))
     .map((k) => ({ id: k.id, st: stats[k.id], due: dueOf(stats[k.id]) }))
     .filter((x) => x.due && x.due <= today);
   const yFails = due.filter((x) => x.st.fails?.[yesterday]);
@@ -143,7 +150,8 @@ export function generateDaily({
   // new cards: pools per grade, weighted toward the lowest grades; the
   // weight curve flattens as overall progress grows, blending upper grades in
   const span = GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade));
-  const isNew = (k) => !stats[k.id] && !known.has(k.id);
+  const isNew = (k) =>
+    (!stats[k.id] || isRemoved(stats[k.id])) && !known.has(k.id);
   const pools = span
     .map((g) => all.filter((k) => k.grade === g && isNew(k)))
     .filter((p) => p.length > 0);

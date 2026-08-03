@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { BY_ID } from "../Study.jsx";
 import { EXAMPLES } from "../examples.js";
-import { totalFails } from "../lesson.js";
+import { isRemoved, totalFails } from "../lesson.js";
 
 function gradeLabel(g) {
   return g === "S" ? "secondary" : `grade ${g}`;
 }
 
-export default function DeckView({ stats, known, onPractice }) {
+export default function DeckView({ stats, known, onPractice, onRemove }) {
   const hasFailed = useMemo(
     () => Object.values(stats).some((st) => totalFails(st) > 0),
     [stats]
@@ -18,6 +18,7 @@ export default function DeckView({ stats, known, onPractice }) {
 
   const entries = useMemo(() => {
     const list = Object.entries(stats)
+      .filter(([, st]) => !isRemoved(st))
       .map(([id, st]) => ({
         id: Number(id),
         k: BY_ID.get(Number(id)),
@@ -114,6 +115,23 @@ export default function DeckView({ stats, known, onPractice }) {
                   ? "known ✓"
                   : "seen"}
             </div>
+            {onRemove && (
+              <button
+                className="ghost-btn remove-btn"
+                onClick={() => {
+                  if (
+                    confirm(
+                      `Remove ${open.kanji} from your deck? It won't come up for review again unless you re-learn it.`
+                    )
+                  ) {
+                    onRemove(open.id);
+                    setOpenId(null);
+                  }
+                }}
+              >
+                remove from deck
+              </button>
+            )}
             {openExamples.length > 0 && (
               <ul className="examples">
                 {openExamples.map(([w, r, g]) => (

@@ -17,12 +17,19 @@ const app = createApp(join(DATA_DIR, "kanji.db"), {
   adminUsers: (process.env.KANJI_ADMINS || "").split(",").filter(Boolean),
 });
 
-// serve the embedded frontend
+// serve the embedded frontend; unknown extension-less paths fall back to
+// index.html so the client-routed views (/deck, /practice, /admin) deep-link
+const sendAsset = (res, asset) =>
+  res.type(asset.type).send(Buffer.from(asset.b64, "base64"));
+
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   const asset = assets[req.path === "/" ? "/index.html" : req.path];
-  if (!asset) return next();
-  res.type(asset.type).send(Buffer.from(asset.b64, "base64"));
+  if (asset) return sendAsset(res, asset);
+  if (!req.path.startsWith("/api/") && !req.path.includes(".")) {
+    return sendAsset(res, assets["/index.html"]);
+  }
+  next();
 });
 
 app.listen(PORT, () => {

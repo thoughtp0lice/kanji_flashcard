@@ -7,9 +7,9 @@ function gradeLabel(g) {
 
 const DESKTOP_QUERY = "(min-width: 900px)";
 
-// On wide screens the action buttons leave the card for the side rails.
-// jsdom has no layout, so in tests this is always false and the UI suite
-// exercises the mobile DOM.
+// On wide screens the action buttons leave the card for a larger control bar
+// beneath it. jsdom has no layout, so in tests this is always false and the
+// UI suite exercises the mobile DOM.
 function useIsDesktop() {
   const matches = () =>
     typeof window.matchMedia === "function" &&
@@ -38,6 +38,7 @@ export default function Flashcard({
   onPrev,
   practice = false,
   pendingCheck = false,
+  pendingPeek = false,
 }) {
   // The displayed card lags behind `card` when navigating away from a flipped
   // card, so the flip-back animation finishes before the answer swaps out.
@@ -60,6 +61,7 @@ export default function Flashcard({
 
   const examples = EXAMPLES[shown.kanji] || [];
   const showChoice = pendingCheck && card === shown;
+  const showPeek = pendingPeek && card === shown;
 
   const stop = (fn) => (e) => {
     e.stopPropagation();
@@ -67,7 +69,7 @@ export default function Flashcard({
   };
 
   // Each button exists once; mobile renders them inside the card faces,
-  // desktop moves them out to the side rails.
+  // desktop moves them out to the control bar below the card.
   const prevBtn = (
     <button
       className="round-btn"
@@ -131,25 +133,53 @@ export default function Flashcard({
       next →
     </button>
   );
+  // peek (manual flip): grading is still open — nothing recorded yet, so
+  // "didn't know" is a plain cross and "knew it" a plain confirm
+  const peekNoBtn = (
+    <button
+      className="next-btn demote-btn"
+      onClick={stop(onCross)}
+      title="Didn't know (1)"
+    >
+      ✕ didn't know
+    </button>
+  );
+  const peekYesBtn = (
+    <button
+      className="next-btn confirm-btn"
+      onClick={stop(onConfirm)}
+      title="Knew it — next (2)"
+    >
+      ✓ knew it
+    </button>
+  );
 
-  const railLeft = practice
-    ? prevBtn
-    : !flipped
-      ? crossBtn
-      : showChoice
-        ? demoteBtn
-        : null;
-  const railRight = practice
-    ? nextArrowBtn
-    : !flipped
-      ? checkBtn
-      : showChoice
-        ? confirmBtn
-        : nextPillBtn;
+  const desktopControls = practice ? (
+    <>
+      {prevBtn}
+      {nextArrowBtn}
+    </>
+  ) : !flipped ? (
+    <>
+      {crossBtn}
+      {checkBtn}
+    </>
+  ) : showChoice ? (
+    <>
+      {demoteBtn}
+      {confirmBtn}
+    </>
+  ) : showPeek ? (
+    <>
+      {peekNoBtn}
+      {peekYesBtn}
+    </>
+  ) : (
+    nextPillBtn
+  );
 
   return (
     <div className="card-zone">
-      {isDesktop && <div className="side-rail">{railLeft}</div>}
       <div className="card-scene">
         <div
           className={`card${flipped ? " flipped" : ""}`}
@@ -235,6 +265,11 @@ export default function Flashcard({
                     {demoteBtn}
                     {confirmBtn}
                   </>
+                ) : showPeek ? (
+                  <>
+                    {peekNoBtn}
+                    {peekYesBtn}
+                  </>
                 ) : (
                   nextPillBtn
                 )}
@@ -243,7 +278,7 @@ export default function Flashcard({
           </div>
         </div>
       </div>
-      {isDesktop && <div className="side-rail">{railRight}</div>}
+      {isDesktop && <div className="control-bar">{desktopControls}</div>}
     </div>
   );
 }

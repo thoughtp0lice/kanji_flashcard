@@ -107,7 +107,7 @@ export default function Setup({
       </p>
 
       {!firstTime && (
-        <p className="setup-note">changes apply from tomorrow's deck</p>
+        <p className="setup-note">today's deck is rebuilt with the new plan</p>
       )}
 
       <div className="setup-actions">

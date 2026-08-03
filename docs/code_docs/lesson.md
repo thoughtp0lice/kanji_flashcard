@@ -23,6 +23,7 @@ it is the most heavily unit-tested part (`test/lesson.test.js`).
 | `onFail(stat, today)` | → `stat` | apply a ✗: log fail, shrink interval, due tomorrow |
 | `failScore(stat, today)` | → number | recency-weighted fail severity for ordering |
 | `totalFails(stat)` | → number | lifetime fail count for a card |
+| `isRemoved(stat)` | → boolean | true if the stat is a removal tombstone |
 | `generateDaily({...})` | → `{ date, queue, done }` | build today's deck |
 
 ## Data model
@@ -35,6 +36,7 @@ A per-kanji SRS record (`stat`), keyed by kanji `id` inside `stats`:
 | `fails` | `{ [date]: count }` | per-day miss counts (never pruned — drives `failScore`/history) |
 | `interval` | number (days) | current SRS interval; absent until first graded answer |
 | `due` | `"YYYY-MM-DD"` | next scheduled review date; absent for pre-SRS entries |
+| `removed` | `"YYYY-MM-DD"` | **tombstone variant:** the user un-enrolled the card on this date. A tombstone stat is `{ removed }` only; `isRemoved` wins over any other fields present. Removed cards are never reviews and are eligible as new picks again (`INV-SCHED-6`). |
 
 `generateDaily` input:
 
@@ -93,13 +95,15 @@ excluded** (they are relearning steps, not review-priority signal).
 
 ### `generateDaily(...)`
 
-1. **Reviews.** Collect every card with `dueOf(stat) <= today`. Split into:
+1. **Reviews.** Collect every card with `dueOf(stat) <= today`, skipping
+   removal tombstones (`isRemoved`). Split into:
    - *Yesterday's fails* — **always included, even past `reviewLimit`.**
      (`INV-SCHED-2`)
    - *The rest* — sorted by `failScore` desc, then earliest `due`; sliced to
      fill the remaining `reviewLimit - (#yesterday fails)` slots.
 2. **New cards.** Over the grade span `GRADE_ORDER[indexOf(startGrade):]`,
-   build one pool per grade of cards that are neither in `stats` nor `known`.
+   build one pool per grade of cards that are neither in `stats` (tombstones
+   count as absent) nor `known`.
    `distribute(newPerDay, poolSizes, decay)` weights the lowest grades most; the
    `decay` flattens (`0.25 → 1.0`) as overall progress grows so upper grades
    blend in. Overflow beyond a pool's size spills into the others.
@@ -124,7 +128,7 @@ redistribution — see the inline comment; it guarantees the counts sum to
 
 ## Tests & verification
 
-`test/lesson.test.js` (30 cases) is the enforcement point:
+`test/lesson.test.js` (28 cases) is the enforcement point:
 
 - graduation to 4d, ~2.5× growth, 365 cap, same-day-fail relearn hold;
 - fail records + tomorrow due, repeated-same-day counts, ~20% lapse floor,
@@ -132,7 +136,8 @@ redistribution — see the inline comment; it guarantees the counts sum to
 - `failScore` weighting and today-exclusion;
 - `generateDaily`: grade-span selection, upper-grade blend-in, known exclusion,
   yesterday-fails-always-in, review cap, due/overdue handling, pre-SRS due
-  derivation, empty queue, infinite limit, date stamping.
+  derivation, empty queue, infinite limit, date stamping, removal tombstones
+  (never reviewed, new-eligible again).
 
 Run: `npm test -- test/lesson.test.js` (Node-environment suite; unaffected by
 the Node 26 `localStorage` caveat).
@@ -142,5 +147,5 @@ the Node 26 `localStorage` caveat).
 - Persistence & the check/confirm/demote flow that calls these:
   [`frontend.md`](frontend.md).
 - Server-side `stats` merge semantics: [`server.md`](server.md).
-- Binding invariants: `INV-SCHED-1..5`, `INV-DATA-1` (see
+- Binding invariants: `INV-SCHED-1..6`, `INV-DATA-1` (see
   [`invariants.md`](invariants.md)).
