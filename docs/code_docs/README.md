@@ -6,9 +6,10 @@ policy lives in [`../../AGENTS.md`](../../AGENTS.md); commands in
 
 ## What this is
 
-A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji. React +
-Vite frontend, Express + `node:sqlite` backend for accounts and cross-device
-sync. Offline-first: `localStorage` keeps it fully usable with no network.
+A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji, with an
+optional level 0 that teaches hiragana + katakana first. React + Vite frontend,
+Express + `node:sqlite` backend for accounts and cross-device sync.
+Offline-first: `localStorage` keeps it fully usable with no network.
 
 **One-line data/control flow:**
 `Login → Study.jsx` loads local + server state (merge) → `generateDaily`
@@ -27,7 +28,7 @@ docs/
     lesson.md                 # SRS scheduling & daily-deck algorithm  (src/lesson.js)
     frontend.md               # React orchestration, components, sync client
     server.md                 # Express API, SQLite schema, auth, admin
-    data.md                   # kanji/example dataset shape & provenance
+    data.md                   # kanji/kana/example dataset shape & provenance
     bundling.md               # 3-stage build → single-file server
     build.md                  # authoritative command reference
     invariants.md             # INV-* catalog + enforcement
@@ -46,7 +47,7 @@ scripts/check_repo.mjs        # repository contract checks (npm run check)
 | Scheduling & daily deck | [lesson.md](lesson.md) | `src/lesson.js` | active |
 | Frontend (orchestration, views, sync client) | [frontend.md](frontend.md) | `src/App.jsx`, `src/Study.jsx`, `src/components/`, `src/api.js` | active |
 | Backend API | [server.md](server.md) | `server/app.js`, `server/index.js`, `server/prod.js` | active |
-| Kanji dataset | [data.md](data.md) | `src/data.js`, `src/examples.js` | active (vendored/generated) |
+| Card datasets (kanji + level-0 kana) | [data.md](data.md) | `src/data.js`, `src/examples.js`, `src/kana.js` | active (kanji vendored/generated; kana authored) |
 | Build pipeline & single-file server | [bundling.md](bundling.md) | `scripts/embed-assets.mjs`, `scripts/bundle.mjs`, `Makefile`, `Dockerfile` | active |
 | Repo contract checks | — | `scripts/check_repo.mjs` | active |
 
@@ -114,14 +115,16 @@ work. See [frontend.md](frontend.md) § "Load & merge" and `INV-SYNC-*`.
 
 | Term | Meaning |
 |---|---|
-| **stat** | per-kanji SRS record: `{seen, fails:{date:n}, interval, due}` |
-| **known** | `Set` of kanji ids the user confirmed (✓ + confirm) |
+| **card** | anything studiable: a kanji (`src/data.js`) or a kana (`src/kana.js`); `ALL_CARDS` is both |
+| **stat** | per-card SRS record: `{seen, fails:{date:n}, interval, due}` |
+| **known** | `Set` of card ids the user confirmed (✓ + confirm) |
 | **day / deck** | `{date, queue:[id], done:[id]}` — today's cards |
 | **interval** | days until a card is next due |
 | **due** | the date a card is next scheduled |
 | **lapse** | a failure; shrinks the interval to ~20%, not a reset |
 | **graduate** | a first-sight ✓ → 4-day interval |
-| **grade** | school grade `1..6`, or `S` (secondary/jōyō-only) |
+| **grade** | school grade `1..6`, `S` (secondary/jōyō-only), or `0` = level 0 |
+| **level 0 / kana gate** | the 92-card hiragana+katakana course; while it holds, the deck is kana-only (`INV-SCHED-7`) |
 | **new-per-day / review-limit** | intake cap / review cap in the daily plan |
 | **infinite mode** | keep drawing capped-out reviews + extra new cards |
 | **state blob** | the JSON `{known,prefs,stats,days}` stored per user |
@@ -135,6 +138,7 @@ work. See [frontend.md](frontend.md) § "Load & merge" and `INV-SYNC-*`.
 | add/change an API route or auth rule | `server/app.js` → [server.md](server.md) |
 | change what syncs or how merges resolve | `src/api.js`, `mergeStats` → [frontend.md](frontend.md), [server.md](server.md) |
 | touch the kanji/example data | `src/data.js`, `src/examples.js` → [data.md](data.md) |
+| change level 0 / the kana set | `src/kana.js`, `kanaLocked` in `src/lesson.js` → [data.md](data.md), [lesson.md](lesson.md) |
 | change the build / ship a single file | `scripts/`, `Makefile` → [bundling.md](bundling.md) |
 | run/verify something | [build.md](build.md) |
 | understand a standing contract | [invariants.md](invariants.md) |

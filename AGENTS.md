@@ -12,7 +12,9 @@ guide before making structural changes to docs, invariants, or agents.
 
 ## Orientation
 
-A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji.
+A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji, with an
+optional **level 0** that teaches the kana first: pick it and the deck stays
+hiragana/katakana-only until the whole chart is known (`INV-SCHED-7`).
 
 - **Frontend:** React 18 + Vite. State orchestration in `src/Study.jsx`;
   presentational components in `src/components/`; SRS scheduling in
@@ -26,6 +28,8 @@ A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji.
   `mergeStats` in `src/Study.jsx`).
 - **Data:** the kanji list and example words are static generated modules
   (`src/data.js`, `src/examples.js`), sourced from Wikipedia and kanjiapi.dev.
+  The level-0 kana (`src/kana.js`, 92 cards) are authored in-repo and are
+  ordinary editable source. `Study.jsx` joins both into `ALL_CARDS`/`BY_ID`.
 - **Build:** a 3-stage pipeline (`vite build` → embed assets → esbuild bundle)
   produces one self-contained `build/kanji-server.mjs` that needs only
   Node ≥ 24 to run.
@@ -46,7 +50,7 @@ Everything below links to one authoritative home — do not duplicate.
 | [`docs/code_docs/lesson.md`](docs/code_docs/lesson.md) | SRS scheduling & daily-deck algorithm |
 | [`docs/code_docs/frontend.md`](docs/code_docs/frontend.md) | React state orchestration, components, views, sync client |
 | [`docs/code_docs/server.md`](docs/code_docs/server.md) | Express API, SQLite schema, auth, admin |
-| [`docs/code_docs/data.md`](docs/code_docs/data.md) | kanji/example dataset shape & provenance |
+| [`docs/code_docs/data.md`](docs/code_docs/data.md) | kanji/kana/example dataset shape & provenance |
 | [`docs/code_docs/bundling.md`](docs/code_docs/bundling.md) | build pipeline & single-file production server |
 | [`docs/code_docs/build.md`](docs/code_docs/build.md) | authoritative command reference |
 | [`docs/code_docs/invariants.md`](docs/code_docs/invariants.md) | `INV-*` contract catalog + enforcement |
@@ -63,7 +67,7 @@ When you change code, update the docs that describe it **in the same change.**
 | the sync/state shape (`known`/`prefs`/`stats`/`days`) | `server/app.js`, `src/api.js`, `src/Study.jsx`, `docs/code_docs/server.md`, `docs/code_docs/frontend.md`, `INV-STATE-*` |
 | an API route, auth rule, or DB table | `server/app.js`, `docs/code_docs/server.md`, `test/server.test.js`, `INV-AUTH-*`/`INV-ADMIN-*` |
 | a React view, component prop, or keyboard shortcut | the component, `docs/code_docs/frontend.md`, `README.md` (shortcut table), `test/ui.test.jsx` |
-| the kanji/example data shape | `src/data.js`/`src/examples.js`, `docs/code_docs/data.md`, `INV-DATA-*` |
+| the kanji/kana/example data shape | `src/data.js`/`src/examples.js`/`src/kana.js`, `docs/code_docs/data.md`, `INV-DATA-*` |
 | a command, flag, or dependency | `docs/code_docs/build.md`, `package.json`/`Makefile`, `scripts/check_repo.mjs` if it asserts the command |
 | the build/bundling flow or an output path | `scripts/*.mjs`, `docs/code_docs/bundling.md`, and delete the stale artifact location |
 | a shared agent role or skill | canonical `.agents/` source **and** every `.claude/`/`.codex/` adapter |

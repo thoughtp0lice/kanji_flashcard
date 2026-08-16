@@ -5,7 +5,10 @@
 // - due reviews take priority over new cards; the new-card count is capped
 //   (each new card generates ~5-7 future reviews, so intake is what you limit)
 
-export const GRADE_ORDER = ["1", "2", "3", "4", "5", "6", "S"];
+// "0" is level 0 — the kana syllabaries (src/kana.js), taught before any kanji
+export const GRADE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "S"];
+
+export const KANA_GRADE = "0";
 
 const GROWTH = 2.5; // interval multiplier on success
 const LAPSE = 0.2; // interval multiplier on failure
@@ -116,6 +119,36 @@ function distribute(n, poolSizes, decay) {
   return counts;
 }
 
+// a card the user has never been offered (or has un-enrolled) is new again
+const isNew = (k, stats, known) =>
+  (!stats[k.id] || isRemoved(stats[k.id])) && !known.has(k.id);
+
+// Level 0 gate: while the user started at kana and any kana card is still
+// neither known nor deliberately removed, the deck is kana-only — no kanji is
+// introduced or reviewed. Picking a grade above 0 skips level 0 entirely.
+//
+// Note this is *not* `isNew`: removing a card un-learns it for scheduling
+// (`INV-SCHED-6`) but settles it for the gate — the user opted out, and one
+// removed kana must not lock the deck forever.
+export function kanaLocked({ all, startGrade, stats, known }) {
+  if (startGrade !== KANA_GRADE) return false;
+  return all.some(
+    (k) =>
+      k.grade === KANA_GRADE && !known.has(k.id) && !isRemoved(stats[k.id])
+  );
+}
+
+// the cards eligible to be introduced today, in the order they'd be taken.
+// While the kana gate holds this is the remaining kana in chart order
+// (hiragana, then katakana); otherwise it is everything unseen in the grade
+// span, and the caller weights it per grade.
+export function newCandidates({ all, startGrade, stats, known }) {
+  if (kanaLocked({ all, startGrade, stats, known }))
+    return all.filter((k) => k.grade === KANA_GRADE && isNew(k, stats, known));
+  const span = new Set(GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade)));
+  return all.filter((k) => span.has(k.grade) && isNew(k, stats, known));
+}
+
 export function generateDaily({
   all,
   newPerDay,
@@ -127,10 +160,15 @@ export function generateDaily({
   const today = todayStr();
   const yesterday = addDays(today, -1);
 
+  // while the kana gate holds, kanji are out of scope for reviews too — a
+  // level-0 user sees nothing but kana (`INV-SCHED-7`)
+  const locked = kanaLocked({ all, startGrade, stats, known });
+  const pool = locked ? all.filter((k) => k.grade === KANA_GRADE) : all;
+
   // reviews: everything due today or earlier; yesterday's fails are always
   // included, the rest fill up to reviewLimit ordered by how badly they're
   // failing (recency-weighted) and how overdue they are
-  const due = all
+  const due = pool
     .filter((k) => stats[k.id] && !isRemoved(stats[k.id]))
     .map((k) => ({ id: k.id, st: stats[k.id], due: dueOf(stats[k.id]) }))
     .filter((x) => x.due && x.due <= today);
@@ -147,22 +185,29 @@ export function generateDaily({
     ...rest.slice(0, Math.max(0, reviewLimit - yFails.length)).map((x) => x.id),
   ];
 
-  // new cards: pools per grade, weighted toward the lowest grades; the
-  // weight curve flattens as overall progress grows, blending upper grades in
-  const span = GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade));
-  const isNew = (k) =>
-    (!stats[k.id] || isRemoved(stats[k.id])) && !known.has(k.id);
-  const pools = span
-    .map((g) => all.filter((k) => k.grade === g && isNew(k)))
-    .filter((p) => p.length > 0);
-  const totalInSpan = all.filter((k) => span.includes(k.grade)).length;
-  const remaining = pools.reduce((n, p) => n + p.length, 0);
-  const progress = totalInSpan ? (totalInSpan - remaining) / totalInSpan : 0;
-  const decay = 0.25 + 0.75 * progress;
-  const counts = distribute(newPerDay, pools.map((p) => p.length), decay);
-  const picks = pools.flatMap((p, i) =>
-    shuffled(p).slice(0, counts[i]).map((k) => k.id)
-  );
+  // new cards
+  const candidates = newCandidates({ all, startGrade, stats, known });
+  let picks;
+  if (locked) {
+    // level 0 is a single ordered course, not a weighted blend: take the next
+    // kana in chart order so あいうえお comes before かきくけこ
+    picks = candidates.slice(0, newPerDay).map((k) => k.id);
+  } else {
+    // pools per grade, weighted toward the lowest grades; the weight curve
+    // flattens as overall progress grows, blending upper grades in
+    const span = GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade));
+    const pools = span
+      .map((g) => candidates.filter((k) => k.grade === g))
+      .filter((p) => p.length > 0);
+    const totalInSpan = all.filter((k) => span.includes(k.grade)).length;
+    const remaining = pools.reduce((n, p) => n + p.length, 0);
+    const progress = totalInSpan ? (totalInSpan - remaining) / totalInSpan : 0;
+    const decay = 0.25 + 0.75 * progress;
+    const counts = distribute(newPerDay, pools.map((p) => p.length), decay);
+    picks = pools.flatMap((p, i) =>
+      shuffled(p).slice(0, counts[i]).map((k) => k.id)
+    );
+  }
 
   return { date: today, queue: shuffled([...reviews, ...picks]), done: [] };
 }

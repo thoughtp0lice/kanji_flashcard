@@ -4,11 +4,11 @@ The algorithmic core of the app: an SM-2/Anki-style spaced-repetition engine
 and the daily-deck generator. Pure functions, no I/O, no React — which is why
 it is the most heavily unit-tested part (`test/lesson.test.js`).
 
-- **Purpose:** decide *when* each kanji is due and *which* cards make up today's
-  deck, blending new kanji with due reviews.
+- **Purpose:** decide *when* each card is due and *which* cards make up today's
+  deck, blending new cards with due reviews.
 - **Scope / boundary:** pure date and set math over a `stats` map and the
-  static kanji list. It does **not** touch storage, network, or the DOM;
-  callers (`src/Study.jsx`) own persistence and sync.
+  static card list (kana + kanji). It does **not** touch storage, network, or
+  the DOM; callers (`src/Study.jsx`) own persistence and sync.
 - **Dependency position:** a leaf. `Study.jsx`, `DeckView.jsx`, and
   `PracticeView.jsx` import from it; it imports nothing from the app.
 
@@ -16,7 +16,10 @@ it is the most heavily unit-tested part (`test/lesson.test.js`).
 
 | Export | Signature | Purpose |
 |---|---|---|
-| `GRADE_ORDER` | `["1","2","3","4","5","6","S"]` | canonical grade ordering (school grade, then "S" = secondary/jōyō-only) |
+| `GRADE_ORDER` | `["0","1",…,"6","S"]` | canonical level ordering: `"0"` = kana (level 0), school grades 1–6, then `"S"` = secondary/jōyō-only |
+| `KANA_GRADE` | `"0"` | the level-0 grade key (see [data.md](data.md)) |
+| `kanaLocked({...})` | → boolean | is the level-0 gate holding? |
+| `newCandidates({...})` | → `card[]` | cards eligible to be introduced today, in pick order |
 | `todayStr()` | → `"YYYY-MM-DD"` | today in **local** time |
 | `addDays(dateStr, n)` | → `"YYYY-MM-DD"` | date arithmetic in local time |
 | `onSuccess(stat, today)` | → `stat` | apply a ✓: grow interval / hold relearn step |
@@ -42,10 +45,10 @@ A per-kanji SRS record (`stat`), keyed by kanji `id` inside `stats`:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `all` | `KANJI[]` | the full static list (`{id,kanji,grade,...}`) |
+| `all` | `card[]` | the full static list — `ALL_CARDS` = `KANA` + `KANJI` (`{id,kanji,grade,...}`) |
 | `newPerDay` | number | new-card intake cap |
 | `reviewLimit` | number \| `Infinity` | max non-yesterday reviews (`Infinity` in infinite mode) |
-| `startGrade` | `"1".."6"\|"S"` | lowest grade to introduce |
+| `startGrade` | `"0".."6"\|"S"` | lowest level to introduce (`"0"` = kana) |
 | `stats` | `{ [id]: stat }` | current SRS state |
 | `known` | `Set<id>` | ids the user has marked known (excluded from new) |
 
@@ -93,20 +96,51 @@ Recency-weighted severity used only for **ordering** reviews: sums
 excluded** (they are relearning steps, not review-priority signal).
 (`INV-SCHED-5`)
 
+### Level 0 — the kana gate (`kanaLocked`)
+
+Level 0 teaches the two syllabaries before any kanji. It is a **gate**, not
+just another grade: while it holds, the deck is kana-only.
+
+`kanaLocked` is true when **both**:
+
+- `startGrade === "0"` — the user chose level 0. Starting at grade 1+ skips
+  level 0 entirely and never shows a kana card; and
+- some grade-`"0"` card is neither in `known` nor a removal tombstone.
+
+Note the second clause is deliberately **not** `isNew`. A removed card is
+new-eligible again (`INV-SCHED-6`) but *settles* the gate — the user opted out,
+and one removed kana must not lock the deck forever.
+
+While locked, `generateDaily` restricts its whole working set to grade `"0"`:
+no kanji is introduced **and no kanji review is scheduled**, even one that is
+due or was failed yesterday (`INV-SCHED-7` — the one documented exception to
+`INV-SCHED-2`). Suppressed kanji reviews are not lost, only deferred: they stay
+overdue and return the day the gate lifts.
+
+The gate can re-close if the user un-learns a kana (a ✗ drops it from `known`)
+after having cleared it. The cost is bounded — that day's kanji reviews slip by
+a day and resume once the kana is re-confirmed.
+
 ### `generateDaily(...)`
 
-1. **Reviews.** Collect every card with `dueOf(stat) <= today`, skipping
-   removal tombstones (`isRemoved`). Split into:
+0. **Gate.** `locked = kanaLocked(...)`; if locked, the working pool is the
+   grade-`"0"` cards only, for both steps below.
+1. **Reviews.** Collect every card in the pool with `dueOf(stat) <= today`,
+   skipping removal tombstones (`isRemoved`). Split into:
    - *Yesterday's fails* — **always included, even past `reviewLimit`.**
      (`INV-SCHED-2`)
    - *The rest* — sorted by `failScore` desc, then earliest `due`; sliced to
      fill the remaining `reviewLimit - (#yesterday fails)` slots.
-2. **New cards.** Over the grade span `GRADE_ORDER[indexOf(startGrade):]`,
-   build one pool per grade of cards that are neither in `stats` (tombstones
-   count as absent) nor `known`.
-   `distribute(newPerDay, poolSizes, decay)` weights the lowest grades most; the
-   `decay` flattens (`0.25 → 1.0`) as overall progress grows so upper grades
-   blend in. Overflow beyond a pool's size spills into the others.
+2. **New cards** — `newCandidates` supplies the eligible pool (not in `stats`,
+   tombstones counting as absent, and not `known`):
+   - *Locked:* take the first `newPerDay` kana in **chart order** — level 0 is
+     one ordered course (あいうえお before かきくけこ, all hiragana before
+     katakana), not a weighted blend.
+   - *Unlocked:* over the grade span `GRADE_ORDER[indexOf(startGrade):]`, build
+     one pool per grade. `distribute(newPerDay, poolSizes, decay)` weights the
+     lowest grades most; the `decay` flattens (`0.25 → 1.0`) as overall
+     progress grows so upper grades blend in. Overflow beyond a pool's size
+     spills into the others.
 3. Return `{ date, queue: shuffle(reviews + picks), done: [] }`.
 
 `distribute` is a weighted largest-remainder apportionment with overflow
@@ -128,7 +162,7 @@ redistribution — see the inline comment; it guarantees the counts sum to
 
 ## Tests & verification
 
-`test/lesson.test.js` (28 cases) is the enforcement point:
+`test/lesson.test.js` (39 cases) is the enforcement point:
 
 - graduation to 4d, ~2.5× growth, 365 cap, same-day-fail relearn hold;
 - fail records + tomorrow due, repeated-same-day counts, ~20% lapse floor,
@@ -137,7 +171,12 @@ redistribution — see the inline comment; it guarantees the counts sum to
 - `generateDaily`: grade-span selection, upper-grade blend-in, known exclusion,
   yesterday-fails-always-in, review cap, due/overdue handling, pre-SRS due
   derivation, empty queue, infinite limit, date stamping, removal tombstones
-  (never reviewed, new-eligible again).
+  (never reviewed, new-eligible again), and level-0 exclusion for kanji-grade
+  starts;
+- the kana gate (`describe("level 0 — the kana gate")`): locks only for a
+  level-0 start, unlocks when the chart is known, a removed kana settles it,
+  chart-order intake, hiragana before katakana, kanji fully hidden while locked
+  (including a due review), kana still reviewed, kanji released on unlock.
 
 Run: `npm test -- test/lesson.test.js` (Node-environment suite; unaffected by
 the Node 26 `localStorage` caveat).
@@ -147,5 +186,6 @@ the Node 26 `localStorage` caveat).
 - Persistence & the check/confirm/demote flow that calls these:
   [`frontend.md`](frontend.md).
 - Server-side `stats` merge semantics: [`server.md`](server.md).
-- Binding invariants: `INV-SCHED-1..6`, `INV-DATA-1` (see
+- Level-0 dataset: [`data.md`](data.md) § "Kana (`src/kana.js`)".
+- Binding invariants: `INV-SCHED-1..7`, `INV-DATA-1`, `INV-DATA-3` (see
   [`invariants.md`](invariants.md)).

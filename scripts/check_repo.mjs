@@ -146,7 +146,8 @@ try {
 }
 
 // ── INV-DATA-1 / INV-DATA-2: unique ids; grades within GRADE_ORDER ───────────
-const GRADE_ORDER = ["1", "2", "3", "4", "5", "6", "S"];
+const GRADE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "S"];
+const KANA_GRADE = "0";
 try {
   const { KANJI } = await import(pathToFileURL(r("src/data.js")).href);
   const ids = new Set();
@@ -159,6 +160,29 @@ try {
   else pass("INV-DATA-1", `${KANJI.length} kanji, all ids unique`);
   if (badGrade) fail("INV-DATA-2", `${badGrade} kanji with a grade outside GRADE_ORDER`);
   else pass("INV-DATA-2", "all grades within GRADE_ORDER");
+
+  // ── INV-DATA-3: kana ids are disjoint from kanji ids; all are grade "0" ────
+  try {
+    const { KANA } = await import(pathToFileURL(r("src/kana.js")).href);
+    const problems = [];
+    const kanaIds = new Set();
+    for (const k of KANA) {
+      if (ids.has(k.id)) problems.push(`id ${k.id} collides with a kanji`);
+      if (kanaIds.has(k.id)) problems.push(`duplicate kana id ${k.id}`);
+      kanaIds.add(k.id);
+      if (k.grade !== KANA_GRADE) problems.push(`${k.kanji} has grade ${k.grade}`);
+      if (k.kind !== "kana") problems.push(`${k.kanji} is not kind "kana"`);
+      if (!k.pair || !k.script || !k.romaji) problems.push(`${k.kanji} is missing script/pair/romaji`);
+    }
+    // every glyph must be paired: its `pair` is another card's glyph
+    const glyphs = new Set(KANA.map((k) => k.kanji));
+    for (const k of KANA) if (!glyphs.has(k.pair)) problems.push(`${k.kanji} pairs with unknown ${k.pair}`);
+    const hira = KANA.filter((k) => k.script === "hiragana").length;
+    const kata = KANA.filter((k) => k.script === "katakana").length;
+    if (hira !== kata) problems.push(`${hira} hiragana vs ${kata} katakana — scripts must mirror`);
+    if (problems.length) fail("INV-DATA-3", problems.slice(0, 5).join("; ") + (problems.length > 5 ? ` (+${problems.length - 5} more)` : ""));
+    else pass("INV-DATA-3", `${KANA.length} kana (${hira}+${kata}), ids disjoint from KANJI, all grade "0"`);
+  } catch (e) { fail("INV-DATA-3", `could not import src/kana.js (${e.message})`); }
 
   // soft: EXAMPLES keys should exist as kanji characters
   try {

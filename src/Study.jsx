@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { KANJI } from "./data.js";
+import { KANA } from "./kana.js";
 import { fetchState, pushState } from "./api.js";
 import Flashcard from "./components/Flashcard.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
@@ -8,16 +9,22 @@ import DeckView from "./components/DeckView.jsx";
 import PracticeView from "./components/PracticeView.jsx";
 import AdminView from "./components/AdminView.jsx";
 import {
-  GRADE_ORDER,
+  KANA_GRADE,
   generateDaily,
   isRemoved,
+  kanaLocked,
+  newCandidates,
   onFail,
   onSuccess,
   todayStr,
   totalFails,
 } from "./lesson.js";
 
-export const BY_ID = new Map(KANJI.map((k) => [k.id, k]));
+// every studiable card: level 0 (kana) first, then the jōyō kanji. Ids are
+// disjoint across the two datasets, so one `stats` map covers both.
+export const ALL_CARDS = [...KANA, ...KANJI];
+
+export const BY_ID = new Map(ALL_CARDS.map((k) => [k.id, k]));
 
 // client-side routing: each view owns a URL so back/forward and deep links
 // work; both server entries fall back to index.html for these paths
@@ -211,7 +218,14 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   useEffect(() => {
     if (!ready || needsSetup || day) return;
     saveDay(
-      generateDaily({ all: KANJI, newPerDay, reviewLimit, startGrade, stats, known })
+      generateDaily({
+        all: ALL_CARDS,
+        newPerDay,
+        reviewLimit,
+        startGrade,
+        stats,
+        known,
+      })
     );
   }, [ready, needsSetup, day, newPerDay, reviewLimit, startGrade]);
 
@@ -220,7 +234,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   useEffect(() => {
     if (!infinite || !ready || !day || day.queue.length > 0) return;
     const extra = generateDaily({
-      all: KANJI,
+      all: ALL_CARDS,
       newPerDay,
       reviewLimit: Infinity,
       startGrade,
@@ -254,17 +268,19 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     () => Object.values(stats).filter((st) => !isRemoved(st)).length,
     [stats]
   );
+  // is there anything left for infinite mode to pull in? Mirrors what
+  // generateDaily would offer, including the level-0 kana gate.
   const hasMore = useMemo(() => {
     const today = todayStr();
-    const span = new Set(GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade)));
-    return (
-      KANJI.some(
-        (k) =>
-          span.has(k.grade) &&
-          (!stats[k.id] || isRemoved(stats[k.id])) &&
-          !known.has(k.id)
-      ) ||
-      Object.values(stats).some((st) => st.due && st.due <= today)
+    if (newCandidates({ all: ALL_CARDS, startGrade, stats, known }).length)
+      return true;
+    const locked = kanaLocked({ all: ALL_CARDS, startGrade, stats, known });
+    return Object.entries(stats).some(
+      ([id, st]) =>
+        !isRemoved(st) &&
+        st.due &&
+        st.due <= today &&
+        (!locked || BY_ID.get(Number(id))?.grade === KANA_GRADE)
     );
   }, [stats, known, startGrade]);
 
@@ -413,7 +429,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   if (needsSetup || showSetup) {
     return (
       <Setup
-        kanji={KANJI}
+        cards={ALL_CARDS}
         startGrade={startGrade}
         newPerDay={newPerDay}
         reviewLimit={reviewLimit}
@@ -428,7 +444,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           // same-day retry
           const today = todayStr();
           const fresh = generateDaily({
-            all: KANJI,
+            all: ALL_CARDS,
             newPerDay: n,
             reviewLimit: r,
             startGrade: g,

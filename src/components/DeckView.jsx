@@ -2,10 +2,7 @@ import { useMemo, useState } from "react";
 import { BY_ID } from "../Study.jsx";
 import { EXAMPLES } from "../examples.js";
 import { isRemoved, totalFails } from "../lesson.js";
-
-function gradeLabel(g) {
-  return g === "S" ? "secondary" : `grade ${g}`;
-}
+import { CardIdentity, CardMeta } from "./Flashcard.jsx";
 
 export default function DeckView({ stats, known, onPractice, onRemove }) {
   const hasFailed = useMemo(
@@ -98,16 +95,11 @@ export default function DeckView({ stats, known, onPractice, onRemove }) {
                 {open.kanji}
               </span>
               <div className="back-id">
-                <div className="back-meaning">{open.meaning}</div>
-                <div className="kana" lang="ja">
-                  {open.kana}
-                </div>
-                <div className="romaji">{open.romaji}</div>
+                <CardIdentity card={open} />
               </div>
             </div>
             <div className="back-meta">
-              {gradeLabel(open.grade)} · {open.strokes} strokes · radical{" "}
-              <span lang="ja">{open.radical}</span>
+              <CardMeta card={open} />
               {" · "}
               {totalFails(stats[open.id])
                 ? `failed ×${totalFails(stats[open.id])}`

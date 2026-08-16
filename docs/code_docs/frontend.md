@@ -21,13 +21,20 @@ screen and all state orchestration (`Study.jsx`), the presentational components
 | `src/App.jsx` | auth gate: no user/token → `<Login/>`, else `<Study key={user}/>` |
 | `src/Study.jsx` | state owner + router across `lesson`/`deck`/`practice`/`admin` views |
 | `src/components/Login.jsx` | username/password form, calls `login`/`register` |
-| `src/components/Setup.jsx` | first-run + change-plan: start grade, new/day, review cap |
-| `src/components/Flashcard.jsx` | the card (front/back flip, action buttons; on ≥900px screens the buttons move out to a control bar below the card) |
+| `src/components/Setup.jsx` | first-run + change-plan: start level (level 0 = kana, or a kanji grade), new/day, review cap |
+| `src/components/Flashcard.jsx` | the card (front/back flip, action buttons; on ≥900px screens the buttons move out to a control bar below the card). Also exports `CardMeta`, the kind-aware identity line reused by `DeckView` |
 | `src/components/DeckView.jsx` | seen-kanji grid, sort/filter, detail modal |
 | `src/components/PracticeView.jsx` | free flip through failed kanji (no scheduling) |
 | `src/components/SettingsSheet.jsx` | mode toggle, plan summary, reset, admin, sign-out |
 | `src/components/AdminView.jsx` | admin dashboard (calls admin API) |
 | `src/api.js` | sync client: auth requests, state fetch, debounced push |
+
+`Study.jsx` owns the card index for the whole app:
+`ALL_CARDS = [...KANA, ...KANJI]` (level 0 then the jōyō) and
+`BY_ID = new Map(ALL_CARDS.map(k => [k.id, k]))`, both exported — `DeckView`,
+`PracticeView`, and `Setup` (via the `cards` prop) work off them, so kana and
+kanji flow through identical code paths. Cards carry `kind: "kana"` when they
+are kana; only `CardMeta` and the back-of-card reading line branch on it.
 
 `App` stores `user`/`token`/`isAdmin` in `localStorage` and React state.
 Switching user remounts `Study` via `key={user}`, guaranteeing fresh state.
@@ -92,6 +99,27 @@ sync.) A `setInterval` rolls the deck over at local midnight.
 
 Infinite mode: when the queue empties, regenerate with `reviewLimit: Infinity`
 to pull capped-out reviews + extra new cards until nothing remains.
+
+### Level 0 (kana) in the UI
+
+`Setup` lists **Level 0 — kana** above Grade 1 (`GRADE_LABELS["0"]`), with its
+92-card count and あ い う え お as samples; selecting it swaps the plan copy
+from "kanji" to "cards" and shows a note that no kanji appears until the whole
+chart is known. Choosing it stores `prefs.startGrade = "0"` like any other
+level — the gate itself lives in `lesson.js` (see [lesson.md](lesson.md)
+§ "Level 0", `INV-SCHED-7`), not in the components.
+
+A kana card renders through the same `Flashcard`: the glyph is `card.kanji`, so
+the front is unchanged. Two exported helpers own the only `kind`-dependent
+markup, and `DeckView`'s detail modal reuses both:
+
+| Helper | Kanji card | Kana card |
+|---|---|---|
+| `CardIdentity` | gloss + readings + rōmaji | rōmaji alone (its reading *is* the glyph, and the script is in the line below) |
+| `CardMeta` | `grade 4 · 13 strokes · radical 心` (+ old form) | `hiragana · katakana ア` |
+
+`hasMore` (the "keep going ∞" affordance) mirrors the gate so infinite mode
+never offers kanji that `generateDaily` would refuse.
 
 ### Plan changes rebuild today's deck
 
@@ -161,7 +189,8 @@ data and it re-syncs on the next change or load. (`INV-SYNC-3`)
 `test/ui.test.jsx` (jsdom) drives the full app against an in-memory mock
 backend: login/register/session-expiry, setup, the check/confirm/demote/cross
 loop, infinite refill, admin visibility + delete, the seen-deck/practice views,
-the plan-change deck rebuild, and card removal. It also unit-tests
+the plan-change deck rebuild, card removal, and the level-0 flow (kana-only
+deck, chart-order first card, paired-syllabary card back). It also unit-tests
 `mergeStats` (exported from `Study.jsx`) including the tombstone rules.
 
 > **Node 26 caveat:** this suite fails locally on Node 26 (native `localStorage`

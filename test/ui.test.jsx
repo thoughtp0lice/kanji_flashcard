@@ -6,6 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import App from "../src/App.jsx";
 import { mergeStats } from "../src/Study.jsx";
 import { addDays, todayStr } from "../src/lesson.js";
+import { KANA } from "../src/kana.js";
 
 // minimal fake backend: routes the app's fetches against an in-memory state
 function mockServer({ state = {}, loginStatus = 200, overview = null } = {}) {
@@ -134,6 +135,43 @@ describe("setup", () => {
     expect(await screen.findByLabelText("I know this")).toBeInTheDocument();
     const prefs = JSON.parse(localStorage.getItem("joyo-kanji-prefs:tester"));
     expect(prefs.startGrade).toBe("2");
+  });
+});
+
+describe("level 0 (kana)", () => {
+  const KANA_PLAN = { mode: "kanji", startGrade: "0", newPerDay: 1, reviewLimit: 5 };
+
+  it("starts a kana-only deck when level 0 is chosen", async () => {
+    loggedIn();
+    mockServer();
+    render(<App />);
+    await screen.findByText(/where do you want to start/);
+    await userEvent.click(screen.getByRole("button", { name: /Level 0/ }));
+    expect(screen.getByText(/No kanji appears until you know every one/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "start learning" }));
+    expect(await screen.findByLabelText("I know this")).toBeInTheDocument();
+
+    const prefs = JSON.parse(localStorage.getItem("joyo-kanji-prefs:tester"));
+    expect(prefs.startGrade).toBe("0");
+    const day = JSON.parse(localStorage.getItem("joyo-kanji-day:tester"));
+    const kanaIds = new Set(KANA.map((k) => k.id));
+    expect(day.queue.length).toBeGreaterThan(0);
+    expect(day.queue.every((id) => kanaIds.has(id))).toBe(true);
+  });
+
+  it("shows the paired syllabary on the back instead of strokes/radical", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: KANA_PLAN } });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    // the chart is taught in order, so the first card is あ
+    expect(document.querySelector(".kanji-main").textContent).toBe("あ");
+    await userEvent.click(screen.getByLabelText("Flashcard — tap to flip"));
+    const meta = await screen.findByText((_, el) =>
+      el?.classList.contains("back-meta")
+    );
+    expect(meta.textContent).toBe("hiragana · katakana ア");
+    expect(meta.textContent).not.toMatch(/strokes|radical/);
   });
 });
 

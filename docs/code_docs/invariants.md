@@ -13,11 +13,12 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 | ID | Invariant | Defined / enforced in | How checked |
 |---|---|---|---|
 | INV-SCHED-1 | A failed card is always due the next day; interval is floored at 1 (lapse, not reset). | `onFail` | `test/lesson.test.js` "records the fail and schedules for tomorrow", "lapses to ~20%… floored at 1" |
-| INV-SCHED-2 | Yesterday's fails are always in today's deck, even past `reviewLimit`. | `generateDaily` | `test/lesson.test.js` "always includes yesterday's fails, even beyond the review limit" |
+| INV-SCHED-2 | Yesterday's fails are always in today's deck, even past `reviewLimit` — unless the level-0 gate hides them (`INV-SCHED-7`). | `generateDaily` | `test/lesson.test.js` "always includes yesterday's fails, even beyond the review limit" |
 | INV-SCHED-3 | Interval never exceeds `MAX_INTERVAL` (365). | `onSuccess` | `test/lesson.test.js` "caps the interval at a year" |
 | INV-SCHED-4 | All dates are local `YYYY-MM-DD`; never parse a day key with `new Date("YYYY-MM-DD")`. | `todayStr`/`addDays`/`fmt`; `localDate()` in `server/app.js` | Review + `test/lesson.test.js` "crosses month and year boundaries"; grep check in `check_repo.mjs` |
 | INV-SCHED-5 | `failScore` excludes today's fails and decays 0.6×/day for ordering only. | `failScore` | `test/lesson.test.js` "weights yesterday fully…", "excludes today's fails" |
 | INV-SCHED-6 | A removed card (`{removed: date}` tombstone) is never selected as a review and is eligible as a new pick again. | `isRemoved`, `generateDaily` | `test/lesson.test.js` "never reviews a removed card…", "lets a removed card be picked as a new card again" |
+| INV-SCHED-7 | While the level-0 gate holds (`startGrade === "0"` and some kana is neither `known` nor removed), today's deck contains **only** grade-`"0"` cards — no kanji is introduced or reviewed. Starting above level 0 never yields a kana card. | `kanaLocked`, `newCandidates`, `generateDaily` | `test/lesson.test.js` "level 0 — the kana gate" block ("shows no kanji at all while locked…", "releases kanji once the whole chart is known"), "ignores level 0 entirely when starting at a kanji grade"; `test/ui.test.jsx` "starts a kana-only deck when level 0 is chosen" |
 
 ## State & sync (`src/api.js`, `src/Study.jsx`, `server/app.js`)
 
@@ -39,12 +40,13 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 | INV-ADMIN-1 | Admin routes require `adminUsers.includes(username)`; else 403 (401 unauth). | `requireAdmin` | `test/server.test.js` "rejects non-admin and unauthenticated access" |
 | INV-ADMIN-2 | Deleting a user refuses self (400) and unknown (404); otherwise cascades across sessions/visits/state/users and invalidates the session. | `DELETE /api/admin/users/:name` | `test/server.test.js` "refuses to delete yourself", "404s deleting an unknown user", "deletes a user and invalidates their session" |
 
-## Data (`src/data.js`, `src/examples.js`)
+## Data (`src/data.js`, `src/examples.js`, `src/kana.js`)
 
 | ID | Invariant | Defined / enforced in | How checked |
 |---|---|---|---|
 | INV-DATA-1 | `KANJI[].id` values are unique; `BY_ID` is total over them. | `src/data.js`; `BY_ID` in `Study.jsx` | `scripts/check_repo.mjs` (dup-id scan) |
 | INV-DATA-2 | Every `KANJI[].grade` is a member of `GRADE_ORDER`. | `src/data.js` / `lesson.js` | `scripts/check_repo.mjs` (grade-domain scan) |
+| INV-DATA-3 | `KANA` ids are unique and **disjoint from `KANJI` ids** (one `stats` map and one `BY_ID` index cover both); every record is `kind: "kana"`, grade `"0"`, carries `script`/`pair`/`romaji`, and its `pair` is another `KANA` glyph, with the two scripts equal in size. | `src/kana.js` | `scripts/check_repo.mjs` (kana id/grade/pairing scan) |
 
 ## Build (`scripts/`, `Makefile`, `Dockerfile`)
 

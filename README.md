@@ -1,6 +1,7 @@
 # 漢字 kanji flashcards
 
-A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji.
+A mobile-first spaced-repetition flashcard app for the 2,136 jōyō kanji —
+plus an optional level 0 that gets you through hiragana and katakana first.
 React + Vite frontend, small Express + SQLite backend for accounts and
 cross-device sync.
 
@@ -8,8 +9,13 @@ cross-device sync.
 
 ## Features
 
-- **Daily decks** — pick a starting school grade and a pace (new kanji/day,
-  max reviews/day); each day blends new kanji with due reviews. New cards
+- **Level 0 — kana first** — starting from zero? Pick **Level 0** instead of a
+  school grade and you study the 92 hiragana and katakana (あ い う… then ア
+  イ ウ…, in chart order) and **nothing else**: no kanji is introduced or
+  reviewed until you know every kana. Then the deck opens up to Grade 1 by
+  itself. Already read kana? Pick a grade and you'll never see a kana card.
+- **Daily decks** — pick a starting level and a pace (new cards/day,
+  max reviews/day); each day blends new cards with due reviews. New kanji
   favor the lowest unfinished grade and blend higher grades in as you
   progress. Changing the plan rebuilds today's deck on the spot (finished
   cards stay finished).
@@ -20,6 +26,7 @@ cross-device sync.
 - **Card details** — meaning, on/kun readings, rōmaji, stroke count,
   radical, old forms, and up to 3 common example words per kanji
   (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
+  Kana cards show their rōmaji and the same sound in the other syllabary.
 - **Seen-kanji browser** — grid of everything you've studied, sortable by
   most-failed, filterable to failed-only, with detail popups. From a popup
   you can remove a card from your deck entirely — it stops coming up for

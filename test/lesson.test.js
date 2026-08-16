@@ -3,15 +3,19 @@ import {
   addDays,
   failScore,
   generateDaily,
+  kanaLocked,
+  newCandidates,
   onFail,
   onSuccess,
   todayStr,
   totalFails,
 } from "../src/lesson.js";
 import { KANJI } from "../src/data.js";
+import { KANA } from "../src/kana.js";
 
 const T = "2026-07-20";
-const gradeOf = new Map(KANJI.map((k) => [k.id, k.grade]));
+const ALL = [...KANA, ...KANJI];
+const gradeOf = new Map(ALL.map((k) => [k.id, k.grade]));
 const countByGrade = (ids) =>
   ids.reduce((m, id) => {
     const g = gradeOf.get(id);
@@ -225,6 +229,17 @@ describe("generateDaily", () => {
     expect(d.queue).toHaveLength(0);
   });
 
+  it("ignores level 0 entirely when starting at a kanji grade", () => {
+    const d = generateDaily({
+      ...base,
+      all: ALL,
+      startGrade: "1",
+      newPerDay: 20,
+      reviewLimit: 100,
+    });
+    expect(d.queue.some((id) => gradeOf.get(id) === "0")).toBe(false);
+  });
+
   it("lets a removed card be picked as a new card again", () => {
     const stats = {};
     for (const k of KANJI.filter((k) => k.grade === "S"))
@@ -233,5 +248,99 @@ describe("generateDaily", () => {
     stats[removedId] = { removed: "2026-07-10" };
     const d = generateDaily({ ...base, startGrade: "S", stats, newPerDay: 10, reviewLimit: 0 });
     expect(d.queue).toEqual([removedId]);
+  });
+});
+
+describe("level 0 — the kana gate", () => {
+  const base = { all: ALL, startGrade: "0", stats: {}, known: new Set() };
+  const kanaIds = KANA.map((k) => k.id);
+  const allKanaKnown = () => new Set(kanaIds);
+
+  it("locks only for a user who started at level 0", () => {
+    expect(kanaLocked({ ...base })).toBe(true);
+    expect(kanaLocked({ ...base, startGrade: "1" })).toBe(false);
+  });
+
+  it("unlocks once every kana is known", () => {
+    expect(kanaLocked({ ...base, known: allKanaKnown() })).toBe(false);
+  });
+
+  it("stays locked while a single kana is outstanding", () => {
+    const known = allKanaKnown();
+    known.delete(kanaIds.at(-1));
+    expect(kanaLocked({ ...base, known })).toBe(true);
+  });
+
+  it("counts a removed kana as settled", () => {
+    const known = allKanaKnown();
+    known.delete(kanaIds[0]);
+    const stats = { [kanaIds[0]]: { removed: "2026-07-10" } };
+    expect(kanaLocked({ ...base, known, stats })).toBe(false);
+  });
+
+  it("introduces kana only, in chart order, hiragana first", () => {
+    const d = generateDaily({ ...base, newPerDay: 5, reviewLimit: 100 });
+    expect(d.queue).toHaveLength(5);
+    expect(d.queue.every((id) => gradeOf.get(id) === "0")).toBe(true);
+    // order within the queue is shuffled — assert the *set* is the chart head
+    expect(new Set(d.queue)).toEqual(new Set(kanaIds.slice(0, 5)));
+    expect(newCandidates(base).slice(0, 5).map((k) => k.kanji)).toEqual([
+      "あ",
+      "い",
+      "う",
+      "え",
+      "お",
+    ]);
+  });
+
+  it("moves on to katakana after hiragana is done", () => {
+    const known = new Set(KANA.filter((k) => k.script === "hiragana").map((k) => k.id));
+    const next = newCandidates({ ...base, known });
+    expect(next.every((k) => k.script === "katakana")).toBe(true);
+    expect(next[0].kanji).toBe("ア");
+  });
+
+  it("shows no kanji at all while locked — not even a due review", () => {
+    const today = todayStr();
+    const stats = {
+      // a kanji scheduled from a previous plan, overdue
+      5: { seen: "2026-07-01", fails: { [addDays(today, -1)]: 2 }, interval: 3, due: today },
+    };
+    const d = generateDaily({ ...base, stats, newPerDay: 0, reviewLimit: 100 });
+    expect(d.queue).toHaveLength(0);
+  });
+
+  it("still reviews due kana while locked", () => {
+    const today = todayStr();
+    const stats = {
+      [kanaIds[0]]: { seen: "2026-07-01", fails: {}, interval: 1, due: today },
+    };
+    const d = generateDaily({ ...base, stats, newPerDay: 0, reviewLimit: 100 });
+    expect(d.queue).toEqual([kanaIds[0]]);
+  });
+
+  it("releases kanji once the whole chart is known", () => {
+    const d = generateDaily({
+      ...base,
+      known: allKanaKnown(),
+      newPerDay: 10,
+      reviewLimit: 0,
+    });
+    expect(d.queue).toHaveLength(10);
+    expect(d.queue.every((id) => gradeOf.get(id) !== "0")).toBe(true);
+    expect(d.queue.filter((id) => gradeOf.get(id) === "1").length).toBeGreaterThan(0);
+  });
+
+  it("resumes kanji reviews once unlocked", () => {
+    const today = todayStr();
+    const stats = { 5: { seen: "2026-07-01", fails: {}, interval: 3, due: today } };
+    const d = generateDaily({
+      ...base,
+      known: allKanaKnown(),
+      stats,
+      newPerDay: 0,
+      reviewLimit: 100,
+    });
+    expect(d.queue).toEqual([5]);
   });
 });

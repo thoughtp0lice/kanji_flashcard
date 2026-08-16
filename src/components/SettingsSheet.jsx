@@ -1,3 +1,5 @@
+import { gradeLabel } from "./Flashcard.jsx";
+
 export default function SettingsSheet({
   user,
   mode,
@@ -29,8 +31,7 @@ export default function SettingsSheet({
           </button>
         </div>
         <button className="ghost-btn" onClick={onChangePlan}>
-          {newPerDay} new · {reviewLimit} rev · from{" "}
-          {startGrade === "S" ? "secondary" : `grade ${startGrade}`} ›
+          {newPerDay} new · {reviewLimit} rev · from {gradeLabel(startGrade)} ›
         </button>
       </div>
 

@@ -1,8 +1,53 @@
 import { useEffect, useRef, useState } from "react";
 import { EXAMPLES } from "../examples.js";
 
-function gradeLabel(g) {
+// short label for a level, used on the card back and in the plan summary
+export function gradeLabel(g) {
+  if (g === "0") return "kana";
   return g === "S" ? "secondary" : `grade ${g}`;
+}
+
+// the head block beside a card's glyph: what the card *is*. A kana's reading
+// is its own glyph and its script is already in the meta line below, so it
+// shows the rōmaji alone; a kanji shows gloss + readings + rōmaji.
+export function CardIdentity({ card }) {
+  if (card.kind === "kana")
+    return <div className="back-meaning">{card.romaji}</div>;
+  return (
+    <>
+      <div className="back-meaning">{card.meaning}</div>
+      <div className="kana" lang="ja">
+        {card.kana}
+      </div>
+      <div className="romaji">{card.romaji}</div>
+    </>
+  );
+}
+
+// the identity line under a card's head. A kana card has no strokes/radical —
+// what matters is which syllabary it belongs to and how the same sound is
+// written in the other one.
+export function CardMeta({ card }) {
+  if (card.kind === "kana") {
+    return (
+      <>
+        {card.script} · {card.script === "hiragana" ? "katakana" : "hiragana"}{" "}
+        <span lang="ja">{card.pair}</span>
+      </>
+    );
+  }
+  return (
+    <>
+      {gradeLabel(card.grade)} · {card.strokes} strokes · radical{" "}
+      <span lang="ja">{card.radical}</span>
+      {card.old && (
+        <>
+          {" "}
+          · old form <span lang="ja">{card.old}</span>
+        </>
+      )}
+    </>
+  );
 }
 
 const DESKTOP_QUERY = "(min-width: 900px)";
@@ -222,23 +267,12 @@ export default function Flashcard({
                   {shown.kanji}
                 </span>
                 <div className="back-id">
-                  <div className="back-meaning">{shown.meaning}</div>
-                  <div className="kana" lang="ja">
-                    {shown.kana}
-                  </div>
-                  <div className="romaji">{shown.romaji}</div>
+                  <CardIdentity card={shown} />
                 </div>
               </div>
 
               <div className="back-meta">
-                {gradeLabel(shown.grade)} · {shown.strokes} strokes · radical{" "}
-                <span lang="ja">{shown.radical}</span>
-                {shown.old && (
-                  <>
-                    {" "}
-                    · old form <span lang="ja">{shown.old}</span>
-                  </>
-                )}
+                <CardMeta card={shown} />
               </div>
 
               {examples.length > 0 && (
