@@ -173,7 +173,10 @@ layout, because a kana has no strokes/radical/gloss to fill the space:
 |---|---|
 | 1 `.kana-pair` | the sign in **both** scripts side by side (あ / ア) with the rōmaji — the pairing is the thing being learned |
 | 2 `.kana-faces` | the same glyph in three typefaces — 明朝 (serif), ゴシック (sans), 丸ゴシック (rounded). Genuinely useful: さ/き/り join or break their strokes depending on the face |
-| 3 `.examples` | one elementary word containing the sign (`card.examples`, see [data.md](data.md)) |
+
+Both rows are `flex: 1`, so they split the face between them instead of
+bunching at the top. There is no example-word row: kana have no sourced
+vocabulary data (see [data.md](data.md)).
 
 The typefaces are **system font stacks** (`--serif`/`--sans`/`--round`), not
 bundled files — the app ships as one self-contained bundle and a Japanese

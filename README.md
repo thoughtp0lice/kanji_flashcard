@@ -33,8 +33,8 @@ cross-device sync.
   radical, old forms, and up to 3 common example words per kanji
   (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
   A kana card gets its own back: the sign in **both** syllabaries with its
-  rōmaji, then the same glyph in three typefaces (明朝 / ゴシック / 丸ゴシック —
-  they really do differ), then an everyday word that uses it (あ → あめ, rain).
+  rōmaji, and the same glyph in three typefaces (明朝 / ゴシック / 丸ゴシック —
+  they really do differ, which is the point).
 - **Seen-kanji browser** — grid of everything you've studied, sortable by
   most-failed, filterable to failed-only, with detail popups. From a popup
   you can remove a card from your deck entirely — it stops coming up for

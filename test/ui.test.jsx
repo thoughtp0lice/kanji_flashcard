@@ -159,7 +159,7 @@ describe("level 0 (kana)", () => {
     expect(day.queue.every((id) => kanaIds.has(id))).toBe(true);
   });
 
-  it("gives the kana back three rows: pair + rōmaji, typefaces, a word", async () => {
+  it("gives the kana back its own two rows: pair + rōmaji, then typefaces", async () => {
     loggedIn();
     mockServer({ state: { prefs: KANA_PLAN } });
     render(<App />);
@@ -183,12 +183,8 @@ describe("level 0 (kana)", () => {
       expect(f.querySelector(".face-glyph").textContent).toBe("あ");
     }
 
-    // row 3 — an elementary word that actually contains the kana
-    const ex = document.querySelector(".examples li");
-    expect(ex.querySelector(".ex-word").textContent).toBe("あめ");
-    expect(ex.querySelector(".ex-gloss").textContent).toBe("rain");
-
-    // and none of the kanji-only furniture
+    // no example words on a kana card, and none of the kanji-only furniture
+    expect(document.querySelector(".examples")).toBeNull();
     expect(document.querySelector(".back-meta")).toBeNull();
     expect(document.body.textContent).not.toMatch(/strokes|radical/);
   });

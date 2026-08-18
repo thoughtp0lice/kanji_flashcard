@@ -173,14 +173,6 @@ try {
       if (k.grade !== KANA_GRADE) problems.push(`${k.kanji} has grade ${k.grade}`);
       if (k.kind !== "kana") problems.push(`${k.kanji} is not kind "kana"`);
       if (!k.pair || !k.script || !k.romaji) problems.push(`${k.kanji} is missing script/pair/romaji`);
-      // the example is the card's third row — it has to actually contain the
-      // sign it is illustrating, or it teaches nothing
-      if (!k.examples?.length) problems.push(`${k.kanji} has no example word`);
-      else
-        for (const [word, romaji, gloss] of k.examples) {
-          if (!word.includes(k.kanji)) problems.push(`${k.kanji}: example "${word}" does not contain it`);
-          if (!romaji || !gloss) problems.push(`${k.kanji}: example "${word}" is missing romaji/gloss`);
-        }
     }
     // every glyph must be paired: its `pair` is another card's glyph
     const glyphs = new Set(KANA.map((k) => k.kanji));

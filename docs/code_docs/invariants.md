@@ -55,7 +55,7 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 |---|---|---|---|
 | INV-DATA-1 | `KANJI[].id` values are unique; `BY_ID` is total over them. | `src/data.js`; `BY_ID` in `Study.jsx` | `scripts/check_repo.mjs` (dup-id scan) |
 | INV-DATA-2 | Every `KANJI[].grade` is a member of `GRADE_ORDER`. | `src/data.js` / `lesson.js` | `scripts/check_repo.mjs` (grade-domain scan) |
-| INV-DATA-3 | `KANA` ids are unique and **disjoint from `KANJI` ids** (one `stats` map and one `BY_ID` index cover both); every record is `kind: "kana"`, grade `"0"`, carries `script`/`pair`/`romaji`, and its `pair` is another `KANA` glyph, with the two scripts equal in size. Every card has ≥1 example whose word **contains that card's own sign** and has both rōmaji and a gloss. | `src/kana.js` | `scripts/check_repo.mjs` (kana id/grade/pairing/example scan) |
+| INV-DATA-3 | `KANA` ids are unique and **disjoint from `KANJI` ids** (one `stats` map and one `BY_ID` index cover both); every record is `kind: "kana"`, grade `"0"`, carries `script`/`pair`/`romaji`, and its `pair` is another `KANA` glyph, with the two scripts equal in size. | `src/kana.js` | `scripts/check_repo.mjs` (kana id/grade/pairing scan) |
 
 ## Build (`scripts/`, `Makefile`, `Dockerfile`)
 

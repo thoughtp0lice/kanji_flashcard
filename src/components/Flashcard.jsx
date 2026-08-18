@@ -20,7 +20,8 @@ const FACES = [
 ];
 
 // A kana card earns a layout of its own: the pair side by side with the
-// rōmaji, the glyph across typefaces, then a word it shows up in.
+// rōmaji, then the glyph across typefaces. Both rows grow to fill the face —
+// there is no third row of example words to take up the slack.
 export function KanaBack({ card }) {
   const hira = card.script === "hiragana" ? card.kanji : card.pair;
   const kata = card.script === "katakana" ? card.kanji : card.pair;
@@ -54,20 +55,6 @@ export function KanaBack({ card }) {
           </div>
         ))}
       </div>
-
-      {card.examples?.length > 0 && (
-        <ul className="examples">
-          {card.examples.map(([w, r, g]) => (
-            <li key={w}>
-              <span className="ex-word" lang="ja">
-                {w}
-              </span>
-              <span className="ex-reading">{r}</span>
-              <span className="ex-gloss">{g}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </>
   );
 }

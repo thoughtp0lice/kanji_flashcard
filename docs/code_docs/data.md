@@ -64,17 +64,14 @@ readings), so the source is auditable rather than a generated blob.
 | `meaning` | string | `"hiragana a"` | front text in "meaning" mode; script-qualified so あ and ア are distinguishable |
 | `kana` | string | `"あ"` | the glyph again (a kana's reading *is* itself); the card back suppresses this line for `kind: "kana"` |
 | `romaji` | string | `"a"` | Hepburn; also the answer for the typing test |
-| `examples` | `[[word, romaji, gloss]]` | `[["あめ","ame","rain"]]` | one elementary word **containing** the sign — hiragana words for hiragana, loanwords for katakana |
 
 Kana records deliberately **omit** `strokes`, `radical`, and `old` — the back
-face branches on `kind` and renders `KanaBack` instead (pair + rōmaji,
-typefaces, example). `EXAMPLES` (the kanji table) has no kana keys; kana carry
-their own `examples` inline.
-
-Note the middle tuple element is **rōmaji**, not a kana reading as in
-`EXAMPLES` — a kana word needs no reading gloss. The words are hand-authored
-(there is no generator); `scripts/check_repo.mjs` asserts every card has one
-and that the word actually contains its own sign.
+face branches on `kind` and renders `KanaBack` instead (pair + rōmaji, then
+typefaces). They also carry **no example words**: `EXAMPLES` is keyed by kanji
+character and has no kana entries, and hand-authoring 92 vocabulary items was
+rejected as unverifiable content (it was briefly shipped and removed — see the
+git history for `WORDS` in this file). If example words return, they need a
+real source, the way `examples.js` has one.
 
 **Scope:** the base chart only. Dakuten (が/ぱ) and yōon (きゃ) are mechanical
 derivations of these 46 signs and are out of scope — level 0 exists to unlock
@@ -108,6 +105,10 @@ kanji, not to be a complete kana course. Widening it means adding rows to
 - `KANA` ids are unique, disjoint from `KANJI` ids, all grade `"0"`, and every
   `pair` resolves to another kana glyph with the two scripts equal in size —
   enforced by the same script (`INV-DATA-3`).
+- **No unsourced content.** Everything in `kana.js` is either the gojūon chart
+  itself or Hepburn romanization — both mechanically checkable. Anything
+  needing editorial judgement (vocabulary, glosses, mnemonics) belongs in a
+  sourced dataset, not here.
 - `EXAMPLES` keys should exist in `KANJI` by character — checked as a soft
   warning (data is external, so a stray key is not fatal).
 

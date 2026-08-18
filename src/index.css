@@ -407,7 +407,9 @@ button {
 
 /* back — kana layout: pair + rōmaji, the glyph across typefaces, a word */
 
+/* two rows, so each takes half the face rather than bunching at the top */
 .kana-pair {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 1.4rem;
@@ -439,10 +441,13 @@ button {
 }
 
 .kana-faces {
+  flex: 1;
   display: flex;
+  align-items: stretch;
   gap: 0.6rem;
   border-top: 1px solid var(--card-edge);
-  padding-top: 0.8rem;
+  padding-top: 0.9rem;
+  padding-bottom: 0.3rem;
 }
 
 .face-cell {
@@ -450,14 +455,15 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.5rem 0.2rem;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.7rem 0.2rem;
   background: var(--bg);
   border-radius: 12px;
 }
 
 .face-glyph {
-  font-size: 2rem;
+  font-size: clamp(2rem, 11vw, 2.8rem);
   line-height: 1.1;
 }
 
