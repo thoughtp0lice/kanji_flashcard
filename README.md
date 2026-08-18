@@ -24,17 +24,21 @@ cross-device sync.
   back tomorrow. Yesterday's misses are always in today's deck, even past
   the review limit.
 - **Typing test** — instead of grading yourself, prove it: pressing ✓ shrinks
-  the card to the top half and asks you to type the reading. Get it right and
-  the card passes and moves on; get it wrong and it counts as a miss and shows
-  you the answer. On for kana by default (`off` / `kana` / `all` in settings),
-  and kanji can be answered in **rōmaji or kana**. Spelling is judged
-  leniently — `shi`/`si`, `kou`/`kō`/`ko` and either syllabary all count.
+  the card to the top half and asks you to type the reading. The card answers
+  back — **light green** if you were right, and it moves on by itself; **light
+  red** if you were wrong, and it stays put with the answer showing. On for
+  kana by default (`off` / `kana` / `all` in settings), and kanji can be
+  answered in **rōmaji or kana**. Spelling is judged leniently — `shi`/`si`,
+  `kou`/`kō`/`ko` and either syllabary all count.
 - **Card details** — meaning, on/kun readings, rōmaji, stroke count,
   radical, old forms, and up to 3 common example words per kanji
   (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
-  A kana card gets its own back: the sign in **both** syllabaries with its
-  rōmaji, and the same glyph in three typefaces (明朝 / ゴシック / 丸ゴシック —
-  they really do differ, which is the point).
+  A kana card gets its own back, in four rows: the sign in **both**
+  syllabaries, its rōmaji, the glyph in three calligraphic styles
+  (楷書 / 草書 / 手書き), and words the sound turns up in — drawn from the
+  grade 1–2 kanji examples, with the sign picked out of the reading.
+  The calligraphic styles use fonts your device already has; where one is
+  missing the card says so instead of showing a substitute.
 - **Seen-kanji browser** — grid of everything you've studied, sortable by
   most-failed, filterable to failed-only, with detail popups. From a popup
   you can remove a card from your deck entirely — it stops coming up for
@@ -103,7 +107,7 @@ User data lives in `server/data/kanji.db` (gitignored).
 
 | key | action |
 | --- | --- |
-| `space` | flip card |
+| `space` | peek at the answer (the lesson card does not flip on tap — only in practice mode) |
 | `2` | ✓ know it |
 | `1` | ✗ don't know |
 | `→` | skip / next |

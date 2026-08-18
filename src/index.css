@@ -13,6 +13,11 @@
   --faint: #c6d1e0;
   --red: #c96a63;
   --green: #58a07c;
+  /* answer feedback — light washes, not the saturated button colors */
+  --right: #dff3e6;
+  --right-edge: #a9d9bd;
+  --wrong: #fadfdd;
+  --wrong-edge: #e7b3ad;
   --accent: #46608a;
   --shadow: 0 8px 28px rgba(70, 90, 130, 0.13), 0 2px 8px rgba(70, 90, 130, 0.07);
   --sans: "Hiragino Sans", "Noto Sans JP", Meiryo, system-ui, sans-serif;
@@ -407,12 +412,20 @@ button {
 
 /* back — kana layout: pair + rōmaji, the glyph across typefaces, a word */
 
-/* two rows, so each takes half the face rather than bunching at the top */
+/* four rows: the pair, the rōmaji, the calligraphic faces, example words */
 .kana-pair {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 1.4rem;
+  justify-content: center;
+  gap: 2.2rem;
+}
+
+.kana-romaji-row {
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--card-edge);
+  padding-top: 0.7rem;
 }
 
 .kana-cell {
@@ -434,9 +447,9 @@ button {
 }
 
 .kana-romaji {
-  margin-left: auto;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--accent);
 }
 
@@ -472,6 +485,28 @@ button {
   color: var(--muted);
 }
 
+/* the font is not installed — say so rather than pass a fallback off as 草書 */
+.face-cell.face-missing {
+  opacity: 0.55;
+}
+
+.face-note {
+  font-size: 0.52rem;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--faint);
+}
+
+.kana-examples {
+  border-top: 1px solid var(--card-edge);
+  padding-top: 0.8rem;
+}
+
+.kana-examples .ex-reading b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .back-actions {
   display: flex;
   gap: 0.6rem;
@@ -487,14 +522,80 @@ button {
   gap: 1rem;
 }
 
-/* higher specificity than the .card-scene sizing in the media queries below,
+/* The shrink is animated via max-height rather than flex-basis: the flex
+   main size is what actually changes, and transitioning `flex` means
+   animating flex-grow, which the layout algorithm applies in discrete jumps.
+   max-height interpolates cleanly and the pad below takes the freed space.
+
+   Higher specificity than the .card-scene sizing in the media queries below,
    so it wins regardless of source order — but their `height`/`margin` still
-   apply unless explicitly reset here */
+   apply unless explicitly reset here. */
+.card-scene {
+  max-height: 100%;
+  transition: max-height 0.38s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
 .card-zone.typing .card-scene {
-  flex: 0 0 48%;
-  min-height: 0;
+  max-height: 48%;
   height: auto;
   margin: 0;
+}
+
+/* the glyph shrinks with its card so a half-height card still frames it */
+.kanji-main,
+.meaning-main {
+  transition: font-size 0.38s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.card-zone.typing .kanji-main {
+  font-size: clamp(3.5rem, 24vw, 7rem);
+}
+
+.card-zone.typing .meaning-main {
+  font-size: clamp(1.1rem, 5vw, 1.6rem);
+}
+
+/* the input slides up into the space the card just gave back */
+.type-pad {
+  animation: type-pad-in 0.38s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes type-pad-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* verdict — the card itself answers back */
+.card.verdict-right .card-face {
+  background: var(--right);
+  border-color: var(--right-edge);
+}
+
+.card.verdict-wrong .card-face {
+  background: var(--wrong);
+  border-color: var(--wrong-edge);
+}
+
+.card-face {
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-scene,
+  .kanji-main,
+  .meaning-main,
+  .card-face {
+    transition: none;
+  }
+  .type-pad {
+    animation: none;
+  }
 }
 
 .type-pad {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "../src/App.jsx";
@@ -159,32 +159,46 @@ describe("level 0 (kana)", () => {
     expect(day.queue.every((id) => kanaIds.has(id))).toBe(true);
   });
 
-  it("gives the kana back its own two rows: pair + rōmaji, then typefaces", async () => {
+  it("gives the kana back four rows: pair, rōmaji, faces, example words", async () => {
     loggedIn();
-    mockServer({ state: { prefs: KANA_PLAN } });
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "off" } } });
     render(<App />);
     await screen.findByLabelText("I know this");
     // the chart is taught in order, so the first card is あ
     expect(document.querySelector(".kanji-main").textContent).toBe("あ");
-    await userEvent.click(screen.getByLabelText("Flashcard — tap to flip"));
+    await userEvent.keyboard(" "); // space peeks — the card is no longer click-to-flip
 
-    // row 1 — both scripts side by side, then the rōmaji
+    // row 1 — both scripts side by side, and only them
     const pair = document.querySelector(".kana-pair");
     expect([...pair.querySelectorAll(".kana-glyph")].map((e) => e.textContent))
       .toEqual(["あ", "ア"]);
     expect([...pair.querySelectorAll(".kana-script")].map((e) => e.textContent))
       .toEqual(["hiragana", "katakana"]);
-    expect(pair.querySelector(".kana-romaji").textContent).toBe("a");
+    expect(pair.querySelector(".kana-romaji")).toBeNull();
 
-    // row 2 — the same glyph in three typefaces
-    const faces = document.querySelectorAll(".kana-faces .face-cell");
+    // row 2 — the rōmaji, on its own
+    expect(document.querySelector(".kana-romaji-row .kana-romaji").textContent).toBe("a");
+
+    // row 3 — the same glyph in the three calligraphic styles
+    const faces = [...document.querySelectorAll(".kana-faces .face-cell")];
     expect(faces).toHaveLength(3);
+    expect(faces.map((f) => f.querySelector(".face-label").textContent))
+      .toEqual(["楷書", "草書", "手書き"]);
     for (const f of faces) {
       expect(f.querySelector(".face-glyph").textContent).toBe("あ");
     }
 
-    // no example words on a kana card, and none of the kanji-only furniture
-    expect(document.querySelector(".examples")).toBeNull();
+    // row 4 — real words, sourced from the grade 1–2 kanji examples, with the
+    // sign picked out of the reading
+    const words = [...document.querySelectorAll(".kana-examples li")];
+    expect(words.length).toBeGreaterThan(0);
+    for (const li of words) {
+      expect(li.querySelector(".ex-reading").textContent).toContain("あ");
+      expect(li.querySelector(".ex-reading b").textContent).toBe("あ");
+      expect(li.querySelector(".ex-gloss").textContent).not.toBe("");
+    }
+
+    // and none of the kanji-only furniture
     expect(document.querySelector(".back-meta")).toBeNull();
     expect(document.body.textContent).not.toMatch(/strokes|radical/);
   });
@@ -229,18 +243,18 @@ describe("daily lesson", () => {
     expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
   });
 
-  it("flipping the card manually still lets you grade it", async () => {
+  it("peeking with space still lets you grade it", async () => {
     loggedIn();
     mockServer({ state: { prefs: PLAN } });
     render(<App />);
     await screen.findByLabelText("I know this");
-    await userEvent.click(screen.getByLabelText("Flashcard — tap to flip"));
+    await userEvent.keyboard(" "); // space peeks — the card is no longer click-to-flip
     // peeking records nothing until a choice is made
     expect(JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}")).toEqual({});
     await userEvent.click(await screen.findByRole("button", { name: "✓ knew it" }));
     expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
     // second card: peek then "didn't know" records the fail and keeps studying
-    await userEvent.click(screen.getByLabelText("Flashcard — tap to flip"));
+    await userEvent.keyboard(" "); // space peeks — the card is no longer click-to-flip
     await userEvent.click(await screen.findByRole("button", { name: "✕ didn't know" }));
     const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
     expect(Object.values(stats).some((st) => st.fails[todayStr()] === 1)).toBe(true);
@@ -466,9 +480,48 @@ describe("typing test", () => {
     expect(document.querySelector(".kanji-main").textContent).toBe("し");
     await typeInto("SI"); // kunrei rather than Hepburn "shi"
     await userEvent.click(screen.getByRole("button", { name: "check" }));
+    expect(document.querySelector(".card").className).toContain("verdict-right");
 
-    const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
-    expect(Object.values(stats)[0].interval).toBe(4);
+    // the pass is written when the green hold expires, not on submit
+    await waitFor(() => {
+      const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}");
+      expect(Object.values(stats)[0]?.interval).toBe(4);
+    });
+  });
+
+  it("colors the card green on a right answer, then advances on its own", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana", newPerDay: 2 } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    const shown = KANA.find(
+      (k) => k.kanji === document.querySelector(".kanji-main").textContent
+    );
+    await typeInto(shown.romaji);
+    await userEvent.click(screen.getByRole("button", { name: "check" }));
+
+    // green goes up straight away — the card is still there to be seen
+    expect(document.querySelector(".card").className).toContain("verdict-right");
+    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
+
+    // ...and the hold expires by itself, clearing the green with the card
+    expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
+    expect(document.querySelector(".card").className).not.toContain("verdict");
+  });
+
+  it("colors the card red on a wrong answer and leaves it up", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana", newPerDay: 2 } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    await typeInto("zzz");
+    await userEvent.click(screen.getByRole("button", { name: "check" }));
+
+    expect(document.querySelector(".card").className).toContain("verdict-wrong");
+    // no auto-advance: still red, still the same card, well past the green hold
+    await new Promise((r) => setTimeout(r, 900));
+    expect(document.querySelector(".card").className).toContain("verdict-wrong");
+    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
   });
 
   it("does not prompt for typing when the setting is off", async () => {
@@ -490,6 +543,42 @@ describe("typing test", () => {
     await userEvent.click(await screen.findByLabelText("I know this"));
     expect(await screen.findByLabelText("Type the reading in kana")).toBeInTheDocument();
     expect(screen.queryByLabelText("Type the reading in rōmaji")).toBeNull();
+  });
+});
+
+describe("the lesson card does not flip on click", () => {
+  it("ignores a tap, so the answer cannot be revealed by accident", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: PLAN } });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    const card = document.querySelector(".card");
+    expect(card.className).not.toContain("flipped");
+    // no click affordance at all, and clicking does nothing
+    expect(screen.queryByLabelText("Flashcard — tap to flip")).toBeNull();
+    await userEvent.click(card);
+    expect(document.querySelector(".card").className).not.toContain("flipped");
+    // space still peeks deliberately
+    await userEvent.keyboard(" ");
+    expect(document.querySelector(".card").className).toContain("flipped");
+  });
+
+  it("still flips on tap in practice mode, where nothing is at stake", async () => {
+    const today = todayStr();
+    loggedIn();
+    mockServer({
+      state: {
+        prefs: PLAN,
+        stats: { 4: { seen: today, fails: { [today]: 2 }, interval: 1, due: today } },
+      },
+    });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    await userEvent.click(screen.getByLabelText("Seen kanji"));
+    await userEvent.click(await screen.findByRole("button", { name: /practice/ }));
+    const card = await screen.findByLabelText("Flashcard — tap to flip");
+    await userEvent.click(card);
+    expect(document.querySelector(".card").className).toContain("flipped");
   });
 });
 

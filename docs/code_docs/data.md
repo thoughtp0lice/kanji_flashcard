@@ -66,12 +66,18 @@ readings), so the source is auditable rather than a generated blob.
 | `romaji` | string | `"a"` | Hepburn; also the answer for the typing test |
 
 Kana records deliberately **omit** `strokes`, `radical`, and `old` — the back
-face branches on `kind` and renders `KanaBack` instead (pair + rōmaji, then
-typefaces). They also carry **no example words**: `EXAMPLES` is keyed by kanji
-character and has no kana entries, and hand-authoring 92 vocabulary items was
-rejected as unverifiable content (it was briefly shipped and removed — see the
-git history for `WORDS` in this file). If example words return, they need a
-real source, the way `examples.js` has one.
+face branches on `kind` and renders `KanaBack` instead.
+
+They also carry no example words of their own. Hand-authoring 92 vocabulary
+items was tried and rejected as unverifiable content (see the git history for
+`WORDS` in this file). Instead
+[`src/kanaExamples.js`](../../src/kanaExamples.js) **derives** them from data
+that already has a source: the example words of the **grade 1–2 kanji**. A word
+qualifies when its *reading* contains the sign, which is the pedagogical point
+("here is this sound in a word you will meet") and means a katakana card
+borrows its hiragana twin's words — same sound, and readings in the dataset are
+hiragana. Signs with no match simply show none: を and ヲ, since を is a
+particle and never part of a reading.
 
 **Scope:** the base chart only. Dakuten (が/ぱ) and yōon (きゃ) are mechanical
 derivations of these 46 signs and are out of scope — level 0 exists to unlock

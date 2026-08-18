@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { EXAMPLES } from "../examples.js";
+import { resolveFaces } from "../fonts.js";
+import { examplesForKana, highlight } from "../kanaExamples.js";
 
 // short label for a level, used on the card back and in the plan summary
 export function gradeLabel(g) {
@@ -7,24 +9,17 @@ export function gradeLabel(g) {
   return g === "S" ? "secondary" : `grade ${g}`;
 }
 
-// The three typefaces a learner actually meets: 明朝 (serif, print), ゴシック
-// (sans, screens/signage) and 丸ゴシック (rounded, packaging). Worth showing
-// because the shapes genuinely differ — さ and き break their strokes in some
-// faces and join them in others. These are system stacks, not bundled fonts
-// (the app ships as one self-contained file), so a device that lacks a face
-// falls back to another — still no worse than the single face it had before.
-const FACES = [
-  ["serif", "var(--serif)", "明朝"],
-  ["sans", "var(--sans)", "ゴシック"],
-  ["rounded", "var(--round)", "丸ゴシック"],
-];
-
-// A kana card earns a layout of its own: the pair side by side with the
-// rōmaji, then the glyph across typefaces. Both rows grow to fill the face —
-// there is no third row of example words to take up the slack.
+// A kana card earns a layout of its own, four rows: the pair, the rōmaji,
+// the glyph in calligraphic styles, and words the sound turns up in.
 export function KanaBack({ card }) {
   const hira = card.script === "hiragana" ? card.kanji : card.pair;
   const kata = card.script === "katakana" ? card.kanji : card.pair;
+  // font probing touches the DOM, so keep it out of render and off the
+  // module top level (jsdom/SSR would run it at import time)
+  const [faces, setFaces] = useState(() => resolveFaces());
+  useEffect(() => setFaces(resolveFaces()), []);
+  const examples = examplesForKana(card);
+
   return (
     <>
       <div className="kana-pair">
@@ -40,21 +35,58 @@ export function KanaBack({ card }) {
           </span>
           <span className="kana-script">katakana</span>
         </div>
-        <div className="kana-romaji">{card.romaji}</div>
+      </div>
+
+      <div className="kana-romaji-row">
+        <span className="kana-romaji">{card.romaji}</span>
       </div>
 
       <div className="kana-faces">
-        {FACES.map(([name, stack, label]) => (
-          <div className="face-cell" key={name}>
-            <span className="face-glyph" style={{ fontFamily: stack }} lang="ja">
+        {faces.map((face) => (
+          <div
+            className={`face-cell${face.available ? "" : " face-missing"}`}
+            key={face.key}
+            title={face.hint}
+          >
+            <span
+              className="face-glyph"
+              style={{ fontFamily: face.stack }}
+              lang="ja"
+            >
               {card.kanji}
             </span>
             <span className="face-label" lang="ja">
-              {label}
+              {face.label}
             </span>
+            {/* saying nothing would pass a fallback face off as the real
+                thing — the label has to be honest about what rendered */}
+            {!face.available && (
+              <span className="face-note">no font on this device</span>
+            )}
           </div>
         ))}
       </div>
+
+      {examples.length > 0 && (
+        <ul className="examples kana-examples">
+          {examples.map((e) => {
+            const [before, hit, after] = highlight(e.reading, card.kanji);
+            return (
+              <li key={e.word}>
+                <span className="ex-word" lang="ja">
+                  {e.word}
+                </span>
+                <span className="ex-reading" lang="ja">
+                  {before}
+                  <b>{hit}</b>
+                  {after}
+                </span>
+                <span className="ex-gloss">{e.gloss}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </>
   );
 }
@@ -139,6 +171,7 @@ export default function Flashcard({
   typing = false,
   typed = "",
   inputScript = "romaji",
+  verdict = null, // "right" | "wrong" — tints the card after an answer
   onTyped,
   onSubmitTyped,
 }) {
@@ -321,12 +354,18 @@ export default function Flashcard({
   return (
     <div className={`card-zone${typing ? " typing" : ""}`}>
       <div className="card-scene">
+        {/* In the lesson the card is *not* clickable — a stray tap used to
+            flip it and hand over the answer you are being tested on; peeking
+            is deliberate now (space). Practice mode is pure review with
+            nothing at stake, so there tapping still flips. */}
         <div
-          className={`card${flipped ? " flipped" : ""}`}
-          onClick={onFlip}
-          role="button"
-          tabIndex={0}
-          aria-label="Flashcard — tap to flip"
+          className={`card${flipped ? " flipped" : ""}${
+            verdict ? ` verdict-${verdict}` : ""
+          }`}
+          onClick={practice ? onFlip : undefined}
+          role={practice ? "button" : undefined}
+          tabIndex={practice ? 0 : undefined}
+          aria-label={practice ? "Flashcard — tap to flip" : "Flashcard"}
         >
           <div className="card-face card-front">
             <div className="front-center">

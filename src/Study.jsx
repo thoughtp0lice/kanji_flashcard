@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { KANJI } from "./data.js";
 import { KANA } from "./kana.js";
 import { fetchState, pushState } from "./api.js";
@@ -24,6 +24,9 @@ import { checkReading, inputScriptFor, typingApplies } from "./reading.js";
 // every studiable card: level 0 (kana) first, then the jōyō kanji. Ids are
 // disjoint across the two datasets, so one `stats` map covers both.
 export const ALL_CARDS = [...KANA, ...KANJI];
+
+// how long a correct answer's green stays up before the next card
+const VERDICT_MS = 650;
 
 export const BY_ID = new Map(ALL_CARDS.map((k) => [k.id, k]));
 
@@ -131,6 +134,12 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   const [menuOpen, setMenuOpen] = useState(false);
   // what the user has typed into the reading test (pending === "type")
   const [typed, setTyped] = useState("");
+  // "right" | "wrong" — colors the card straight after an answer is graded
+  const [verdict, setVerdict] = useState(null);
+  // the pending "hold the green, then advance" timer, cleared on unmount so a
+  // sign-out mid-hold cannot write the next card's state
+  const verdictTimer = useRef(null);
+  useEffect(() => () => clearTimeout(verdictTimer.current), []);
 
   // switch views, keeping the URL in sync
   const navigate = (next) => {
@@ -321,6 +330,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     if (!card) return;
     if (typingApplies(card, typing)) {
       setTyped("");
+      setVerdict(null);
       setPending("type");
       return; // stay on the front — the glyph is the prompt
     }
@@ -334,13 +344,17 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     if (!card || pending !== "type") return;
     const correct = checkReading(card, typed, inputScriptFor(card, kanjiInput));
     setTyped("");
+    // color the card before acting on it — jumping straight to the next card
+    // gives no signal that the answer was even read
+    setVerdict(correct ? "right" : "wrong");
+    setPending(null);
     if (correct) {
-      confirmCheck();
+      // hold the green, then move on
+      verdictTimer.current = setTimeout(confirmCheck, VERDICT_MS);
       return;
     }
     recordFail();
-    setPending(null);
-    setFlipped(true);
+    setFlipped(true); // red stays up with the answer, to study
   };
 
   // confirmed after seeing the answer: SRS interval grows, done for today
@@ -356,6 +370,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
       done: [...day.done, card.id],
     });
     setPending(null);
+    setVerdict(null);
     setFlipped(false);
   };
 
@@ -386,6 +401,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     recordFail();
     setPending(null);
     setTyped("");
+    setVerdict(null);
     setFlipped(true);
   };
 
@@ -408,6 +424,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   const skip = () => {
     setPending(null);
     setTyped("");
+    setVerdict(null);
     if (!card || day.queue.length < 2) {
       setFlipped(false);
       return;
@@ -625,6 +642,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
               pendingCheck={pending === "check"}
               pendingPeek={pending === "peek"}
               typing={pending === "type"}
+              verdict={verdict}
               typed={typed}
               inputScript={inputScriptFor(card, kanjiInput)}
               onTyped={setTyped}

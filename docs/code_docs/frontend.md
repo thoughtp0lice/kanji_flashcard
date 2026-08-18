@@ -86,7 +86,7 @@ The ✓ button does **not** immediately mark the card known. Flow:
    `known`, advances the queue; **✕ actually no** (`demote`) records a fail via
    `onFail` and keeps studying — the card retries later today.
 3. ✗ (`cross`) records the fail immediately and flips to the answer.
-4. A manual flip (tap / `space`) → `pending = "peek"`: the answer offers
+4. A manual flip (`space`; tap only in practice) → `pending = "peek"`: the answer offers
    **✓ knew it** (`confirmCheck`) / **✕ didn't know** (`cross`) — nothing is
    recorded until one is chosen, and flipping back to the front cancels the
    peek. After cross/demote (`pending = null`) the answer shows only
@@ -96,15 +96,35 @@ The ✓ button does **not** immediately mark the card known. Flow:
 ### The typing test (`pending = "type"`)
 
 When it applies to the current card, ✓ does not flip — it demands the reading.
-The card shrinks to the top ~half (`.card-zone.typing`) and a large centered
-input takes the space below; the answer face never turns, and `flip()` is
-disabled so a tap cannot leak it. Grading is **strict and automatic** — the
-typed reading replaces the user's self-assessment:
+The card **animates** down to the top ~half (`.card-zone.typing`) and a large
+centered input rises into the space below; the answer face never turns, and
+`flip()` is disabled so nothing can leak it. Grading is **strict and
+automatic** — the typed reading replaces the user's self-assessment, and the
+card colors itself before anything else happens (`verdict` → `.verdict-right`
+/ `.verdict-wrong`):
 
 | Result | Effect |
 |---|---|
-| correct | `confirmCheck()` — `onSuccess`, added to `known`, straight to the next card |
-| wrong | `recordFail()` — `onFail`, flips to the answer to study, `next →` |
+| correct | card goes light green, held `VERDICT_MS` (650 ms), then `confirmCheck()` — `onSuccess`, added to `known`, next card |
+| wrong | card goes light red **and stays**: `recordFail()` → `onFail`, flips to the answer to study, `next →` |
+
+The green hold is a real timer, so a pass is written to `stats` when it
+expires, not on submit — tests must wait for it. It lives in a ref and is
+cleared on unmount so signing out mid-hold cannot write the next card's state.
+
+The shrink animates `max-height`, not `flex-basis`: the flex main size is what
+changes, and transitioning `flex` means animating `flex-grow`, which the layout
+algorithm applies in discrete jumps. All of it is disabled under
+`prefers-reduced-motion`.
+
+### The card does not flip on click
+
+In the lesson the card has no click handler, no `role="button"` and no tab
+stop: a stray tap used to hand over the answer being tested. Peeking is
+deliberate — the space bar (`pending = "peek"`). **Practice mode is the
+exception**: it is pure review with nothing at stake, so `practice` restores
+the click handler and the "Flashcard — tap to flip" label. Tests distinguish
+the two by that label.
 
 Governed by two synced prefs, both in the settings sheet:
 
@@ -171,12 +191,19 @@ layout, because a kana has no strokes/radical/gloss to fill the space:
 
 | Row | Shows |
 |---|---|
-| 1 `.kana-pair` | the sign in **both** scripts side by side (あ / ア) with the rōmaji — the pairing is the thing being learned |
-| 2 `.kana-faces` | the same glyph in three typefaces — 明朝 (serif), ゴシック (sans), 丸ゴシック (rounded). Genuinely useful: さ/き/り join or break their strokes depending on the face |
+| 1 `.kana-pair` | the sign in **both** scripts side by side (あ / ア) — the pairing is the thing being learned |
+| 2 `.kana-romaji-row` | the rōmaji, alone |
+| 3 `.kana-faces` | the glyph in three calligraphic styles — 楷書 / 草書 / 手書き |
+| 4 `.kana-examples` | words the sound appears in, from [`kanaExamples.js`](../../src/kanaExamples.js), with the sign picked out of the reading in bold |
 
-Both rows are `flex: 1`, so they split the face between them instead of
-bunching at the top. There is no example-word row: kana have no sourced
-vocabulary data (see [data.md](data.md)).
+**The faces are system fonts and may not exist.** The app loads nothing
+external, so 楷書/草書/手書き are only available if the OS ships them — 楷書
+usually does (UD デジタル教科書体 on Windows, YuKyokasho/Klee on macOS), 草書
+almost never. [`src/fonts.js`](../../src/fonts.js) probes each candidate with
+the canvas `measureText` trick and marks a cell `.face-missing` with a
+"no font on this device" note when nothing matched, rather than labelling a
+Mincho fallback 草書. Where canvas is unavailable (jsdom) probing reports
+*available* — an unknown is not evidence of absence.
 
 The typefaces are **system font stacks** (`--serif`/`--sans`/`--round`), not
 bundled files — the app ships as one self-contained bundle and a Japanese
