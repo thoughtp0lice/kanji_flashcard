@@ -168,6 +168,19 @@ describe("level 0 (kana)", () => {
     expect(document.querySelector(".kanji-main").textContent).toBe("あ");
     await userEvent.keyboard(" "); // space peeks — the card is no longer click-to-flip
 
+    // the back is a stack of equal cells, and the rule sits only *between*
+    // them — so the kana and their rōmaji share one cell with nothing drawn
+    // in between (`.kana-back > * + *` is what carries the divider)
+    const back = document.querySelector(".kana-back");
+    expect([...back.children].map((c) => c.className.split(" ")[0])).toEqual([
+      "kana-head",
+      "kana-faces",
+      "examples",
+    ]);
+    const head = back.querySelector(".kana-head");
+    expect(head.querySelector(".kana-pair")).not.toBeNull();
+    expect(head.querySelector(".kana-romaji-row")).not.toBeNull();
+
     // row 1 — both scripts side by side, and only them
     const pair = document.querySelector(".kana-pair");
     expect([...pair.querySelectorAll(".kana-glyph")].map((e) => e.textContent))

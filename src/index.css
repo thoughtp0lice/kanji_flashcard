@@ -18,11 +18,13 @@
   --faint: #c6d1e0;
   --red: #c96a63;
   --green: #58a07c;
-  /* answer feedback — light washes, not the saturated button colors */
-  --right: #dff3e6;
-  --right-edge: #a9d9bd;
-  --wrong: #fadfdd;
-  --wrong-edge: #e7b3ad;
+  /* Answer feedback. Light, but they have to *read* as green and red at a
+     glance on a phone — the first pass was so pale against the blue-grey
+     card (#eef3fa) that the wrong state looked like no state at all. */
+  --right: #c8ecd7;
+  --right-edge: #5fae86;
+  --wrong: #f8c9c3;
+  --wrong-edge: #cf7a70;
   --accent: #46608a;
   --shadow: 0 8px 28px rgba(70, 90, 130, 0.13), 0 2px 8px rgba(70, 90, 130, 0.07);
   --sans: "Hiragino Sans", "Noto Sans JP", Meiryo, system-ui, sans-serif;
@@ -417,20 +419,45 @@ button {
 
 /* back — kana layout: pair + rōmaji, the glyph across typefaces, a word */
 
-/* four rows: the pair, the rōmaji, the calligraphic faces, example words */
-.kana-pair {
+/* The kana back is a stack of cells: head (both scripts + rōmaji), the
+   calligraphic faces, example words. Every cell gets the *same* padding top
+   and bottom, and the rule lives only between cells — so nothing sits closer
+   to a divider than anything else. */
+.kana-back {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kana-back > * {
+  padding: 0.95rem 0;
+}
+
+.kana-back > * + * {
+  border-top: 1px solid var(--card-edge);
+}
+
+/* head cell: the kana and their rōmaji are one statement, no rule between */
+.kana-head {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.kana-pair {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2.2rem;
 }
 
-/* no rule between the kana and their rōmaji — they are one statement */
 .kana-romaji-row {
   display: flex;
   justify-content: center;
-  margin-top: -0.4rem;
 }
 
 .kana-cell {
@@ -451,21 +478,27 @@ button {
   color: var(--muted);
 }
 
+/* the rōmaji is the answer, not a footnote — it should carry comparable
+   weight to the glyphs above it (they are clamp(3.4rem, 17vw, 4.6rem)) */
 .kana-romaji {
-  font-size: 1.8rem;
+  font-size: clamp(2.1rem, 11vw, 2.9rem);
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.06em;
   color: var(--accent);
 }
 
+/* spacing and the divider come from `.kana-back > *` — on a kanji back, where
+   there is no `.kana-back`, the row supplies its own */
 .kana-faces {
-  flex: 1;
   display: flex;
   align-items: stretch;
   gap: 0.6rem;
+}
+
+.card-back .back-scroll > .kana-faces {
   border-top: 1px solid var(--card-edge);
-  padding-top: 0.9rem;
-  padding-bottom: 0.3rem;
+  padding-top: 0.95rem;
 }
 
 .face-cell {
@@ -476,7 +509,10 @@ button {
   justify-content: center;
   gap: 0.3rem;
   padding: 0.7rem 0.2rem;
-  background: var(--bg);
+  /* translucent rather than var(--bg): these panels only ever sit on a card
+     face, so they pick up whatever it is tinted — including a verdict wash,
+     where an opaque near-white tile would sit on the red/green like a hole */
+  background: rgba(255, 255, 255, 0.5);
   border-radius: 12px;
 }
 
@@ -491,8 +527,7 @@ button {
 }
 
 .kana-examples {
-  border-top: 1px solid var(--card-edge);
-  padding-top: 0.8rem;
+  justify-content: center;
 }
 
 .ex-romaji {
@@ -570,15 +605,37 @@ button {
   }
 }
 
-/* verdict — the card itself answers back */
+/* verdict — the card itself answers back. The border goes to 2px as well as
+   changing color: the wash alone is easy to miss mid-flip. */
 .card.verdict-right .card-face {
   background: var(--right);
-  border-color: var(--right-edge);
+  border: 2px solid var(--right-edge);
 }
 
 .card.verdict-wrong .card-face {
   background: var(--wrong);
-  border-color: var(--wrong-edge);
+  border: 2px solid var(--wrong-edge);
+}
+
+/* the button on a verdict card rides the wash too (it is `var(--bg)` normally,
+   and only scoped here because .next-btn also lives in the desktop control
+   bar, off the card, where the page background is already var(--bg)) */
+.card.verdict-right .next-btn,
+.card.verdict-wrong .next-btn {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* the dividers on the back have to stay visible against the wash */
+.card.verdict-right .kana-back > * + *,
+.card.verdict-right .kana-examples,
+.card.verdict-right .back-meta {
+  border-top-color: var(--right-edge);
+}
+
+.card.verdict-wrong .kana-back > * + *,
+.card.verdict-wrong .kana-examples,
+.card.verdict-wrong .back-meta {
+  border-top-color: var(--wrong-edge);
 }
 
 .card-face {

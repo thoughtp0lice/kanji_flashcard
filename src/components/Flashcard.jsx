@@ -38,25 +38,30 @@ export function KanaBack({ card, altFonts }) {
   const kata = card.script === "katakana" ? card.kanji : card.pair;
   const examples = examplesForKana(card);
 
+  // One cell per idea, each with the same padding above and below, and a rule
+  // only *between* cells. The pair and the rōmaji are one idea — the same
+  // sound written three ways — so they share a cell with no rule between them.
   return (
-    <>
-      <div className="kana-pair">
-        <div className="kana-cell">
-          <span className="kana-glyph" lang="ja">
-            {hira}
-          </span>
-          <span className="kana-script">hiragana</span>
+    <div className="kana-back">
+      <div className="kana-head">
+        <div className="kana-pair">
+          <div className="kana-cell">
+            <span className="kana-glyph" lang="ja">
+              {hira}
+            </span>
+            <span className="kana-script">hiragana</span>
+          </div>
+          <div className="kana-cell">
+            <span className="kana-glyph" lang="ja">
+              {kata}
+            </span>
+            <span className="kana-script">katakana</span>
+          </div>
         </div>
-        <div className="kana-cell">
-          <span className="kana-glyph" lang="ja">
-            {kata}
-          </span>
-          <span className="kana-script">katakana</span>
-        </div>
-      </div>
 
-      <div className="kana-romaji-row">
-        <span className="kana-romaji">{card.romaji}</span>
+        <div className="kana-romaji-row">
+          <span className="kana-romaji">{card.romaji}</span>
+        </div>
       </div>
 
       {altFonts && <AltFonts card={card} />}
@@ -82,7 +87,7 @@ export function KanaBack({ card, altFonts }) {
           })}
         </ul>
       )}
-    </>
+    </div>
   );
 }
 
