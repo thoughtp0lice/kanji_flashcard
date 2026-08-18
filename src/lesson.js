@@ -123,6 +123,16 @@ function distribute(n, poolSizes, decay) {
 const isNew = (k, stats, known) =>
   (!stats[k.id] || isRemoved(stats[k.id])) && !known.has(k.id);
 
+// The levels a `startGrade` opens up. `startGrade` is a *synced* pref, so it
+// can carry a value this build does not know — written by a newer client, or
+// corrupted. Never let that fall through to `slice(-1)`, which would silently
+// collapse the deck to the single hardest grade; default to the whole kanji
+// ladder, the same place a fresh user starts. (`INV-SCHED-8`)
+export function gradeSpan(startGrade) {
+  const i = GRADE_ORDER.indexOf(startGrade);
+  return i < 0 ? GRADE_ORDER.slice(GRADE_ORDER.indexOf("1")) : GRADE_ORDER.slice(i);
+}
+
 // Level 0 gate: while the user started at kana and any kana card is still
 // neither known nor deliberately removed, the deck is kana-only — no kanji is
 // introduced or reviewed. Picking a grade above 0 skips level 0 entirely.
@@ -145,7 +155,7 @@ export function kanaLocked({ all, startGrade, stats, known }) {
 export function newCandidates({ all, startGrade, stats, known }) {
   if (kanaLocked({ all, startGrade, stats, known }))
     return all.filter((k) => k.grade === KANA_GRADE && isNew(k, stats, known));
-  const span = new Set(GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade)));
+  const span = new Set(gradeSpan(startGrade));
   return all.filter((k) => span.has(k.grade) && isNew(k, stats, known));
 }
 
@@ -195,7 +205,7 @@ export function generateDaily({
   } else {
     // pools per grade, weighted toward the lowest grades; the weight curve
     // flattens as overall progress grows, blending upper grades in
-    const span = GRADE_ORDER.slice(GRADE_ORDER.indexOf(startGrade));
+    const span = gradeSpan(startGrade);
     const pools = span
       .map((g) => candidates.filter((k) => k.grade === g))
       .filter((p) => p.length > 0);

@@ -95,6 +95,11 @@ When you change code, update the docs that describe it **in the same change.**
   experimental `localStorage` global that shadows jsdom's and is `undefined`
   without `--localstorage-file`. The suite passes on Node 24 (which CI uses).
   This is not a code bug — see [`docs/TRICKY_ISSUES.md`](docs/TRICKY_ISSUES.md).
+- **`startGrade`/`prefs` are synced but `GRADE_ORDER` is compiled in.** Adding
+  a value to a synced enum is a *compatibility* change: clients on an older
+  bundle see an unknown value. Decide the fallback before shipping
+  (`gradeSpan`, `INV-SCHED-8`) — this already caused one incident, see
+  [`docs/TRICKY_ISSUES.md`](docs/TRICKY_ISSUES.md).
 - **`build/` and `dist/` are generated and gitignored.** `make clean` removes
   both. Do not commit them. When you move an output, delete the old location.
 - **User data lives in SQLite** (`server/data/kanji.db` in dev, `KANJI_DATA` in

@@ -19,6 +19,7 @@ it is the most heavily unit-tested part (`test/lesson.test.js`).
 | `GRADE_ORDER` | `["0","1",…,"6","S"]` | canonical level ordering: `"0"` = kana (level 0), school grades 1–6, then `"S"` = secondary/jōyō-only |
 | `KANA_GRADE` | `"0"` | the level-0 grade key (see [data.md](data.md)) |
 | `kanaLocked({...})` | → boolean | is the level-0 gate holding? |
+| `gradeSpan(startGrade)` | → `grade[]` | the levels a start grade opens, with a safe fallback for unknown values |
 | `newCandidates({...})` | → `card[]` | cards eligible to be introduced today, in pick order |
 | `todayStr()` | → `"YYYY-MM-DD"` | today in **local** time |
 | `addDays(dateStr, n)` | → `"YYYY-MM-DD"` | date arithmetic in local time |
@@ -120,6 +121,21 @@ overdue and return the day the gate lifts.
 The gate can re-close if the user un-learns a kana (a ✗ drops it from `known`)
 after having cleared it. The cost is bounded — that day's kanji reviews slip by
 a day and resume once the kana is re-confirmed.
+
+### `gradeSpan(startGrade)`
+
+The levels a start grade opens: `GRADE_ORDER` from `startGrade` onward.
+
+`startGrade` is a **synced pref**, so it can arrive holding a value this build
+does not know — written by a newer client, or corrupted. `indexOf` returns
+`-1` for those and `slice(-1)` would silently yield `["S"]`, quietly narrowing
+the whole deck to the hardest grade. `gradeSpan` falls back to the full kanji
+ladder (grade 1 up) instead. (`INV-SCHED-8`)
+
+This is not hypothetical: shipping level 0 added `"0"` to `GRADE_ORDER`, and
+every client still running the previous bundle read a synced
+`startGrade: "0"` as exactly that `slice(-1)` → Secondary-only deck. See
+[`../TRICKY_ISSUES.md`](../TRICKY_ISSUES.md).
 
 ### `generateDaily(...)`
 

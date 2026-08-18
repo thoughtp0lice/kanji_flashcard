@@ -19,15 +19,28 @@ const app = createApp(join(DATA_DIR, "kanji.db"), {
 
 // serve the embedded frontend; unknown extension-less paths fall back to
 // index.html so the client-routed views (/deck, /practice, /admin) deep-link
-const sendAsset = (res, asset) =>
-  res.type(asset.type).send(Buffer.from(asset.b64, "base64"));
+//
+// Caching matters here: Vite gives every asset a content hash, so those are
+// safe to cache forever, but index.html names them and must be revalidated on
+// every load. Without an explicit header a browser may apply heuristic
+// freshness to index.html and keep serving a superseded build — which strands
+// the client on old scheduling code after a deploy. (`INV-BUILD-3`)
+const sendAsset = (res, asset, path) => {
+  res.set(
+    "Cache-Control",
+    path.startsWith("/assets/")
+      ? "public, max-age=31536000, immutable"
+      : "no-cache"
+  );
+  return res.type(asset.type).send(Buffer.from(asset.b64, "base64"));
+};
 
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   const asset = assets[req.path === "/" ? "/index.html" : req.path];
-  if (asset) return sendAsset(res, asset);
+  if (asset) return sendAsset(res, asset, req.path);
   if (!req.path.startsWith("/api/") && !req.path.includes(".")) {
-    return sendAsset(res, assets["/index.html"]);
+    return sendAsset(res, assets["/index.html"], "/index.html");
   }
   next();
 });

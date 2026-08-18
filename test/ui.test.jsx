@@ -412,6 +412,33 @@ describe("plan change", () => {
     expect(day.queue).toHaveLength(2);
     expect(day.done).toEqual([8]);
   });
+
+  // regression: same-day retries were carried over unconditionally, so a
+  // kanji missed earlier today survived the switch into the kana-only deck
+  it("drops carried-over kanji retries when switching to level 0", async () => {
+    const today = todayStr();
+    loggedIn();
+    mockServer({
+      state: {
+        prefs: PLAN,
+        // kanji 4 was failed earlier today, so it is owed a same-day retry
+        stats: { 4: { seen: today, fails: { [today]: 1 }, interval: 1, due: addDays(today, 1) } },
+        days: { [today]: { date: today, queue: [4], done: [] } },
+      },
+    });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    await userEvent.click(screen.getByLabelText("Settings"));
+    await userEvent.click(screen.getByText(/2 new · 5 rev/));
+    await userEvent.click(await screen.findByRole("button", { name: /Level 0/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "save" }));
+
+    const day = JSON.parse(localStorage.getItem("joyo-kanji-day:tester"));
+    const kanaIds = new Set(KANA.map((k) => k.id));
+    expect(day.queue).not.toContain(4);
+    expect(day.queue.length).toBeGreaterThan(0);
+    expect(day.queue.every((id) => kanaIds.has(id))).toBe(true);
+  });
 });
 
 describe("mergeStats", () => {

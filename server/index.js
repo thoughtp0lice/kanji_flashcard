@@ -1,6 +1,6 @@
 import express from "express";
 import { existsSync, mkdirSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, sep } from "path";
 import { fileURLToPath } from "url";
 import { createApp } from "./app.js";
 
@@ -18,11 +18,24 @@ const app = createApp(join(DATA_DIR, "kanji.db"), {
 // unknown extension-less paths fall back to index.html so the client-routed
 // views (/deck, /practice, /admin) deep-link
 if (existsSync(DIST)) {
-  app.use(express.static(DIST));
+  // hashed assets cache forever; index.html must revalidate so a deploy
+  // reaches the browser (see the note in prod.js) — `INV-BUILD-3`
+  app.use(
+    express.static(DIST, {
+      setHeaders: (res, path) =>
+        res.set(
+          "Cache-Control",
+          path.includes(`${sep}assets${sep}`)
+            ? "public, max-age=31536000, immutable"
+            : "no-cache"
+        ),
+    })
+  );
   app.use((req, res, next) => {
     if (req.method !== "GET" || req.path.startsWith("/api/") || req.path.includes(".")) {
       return next();
     }
+    res.set("Cache-Control", "no-cache");
     res.sendFile(join(DIST, "index.html"));
   });
 }

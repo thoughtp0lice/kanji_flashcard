@@ -331,6 +331,23 @@ describe("level 0 — the kana gate", () => {
     expect(d.queue.filter((id) => gradeOf.get(id) === "1").length).toBeGreaterThan(0);
   });
 
+  // regression: a synced `startGrade` this build doesn't know used to hit
+  // GRADE_ORDER.indexOf() === -1 and slice(-1), collapsing the deck to
+  // Secondary — which is exactly what a pre-level-0 client did with "0".
+  it("falls back to the full kanji ladder for an unknown startGrade", () => {
+    const d = generateDaily({
+      ...base,
+      startGrade: "totally-unknown",
+      newPerDay: 20,
+      reviewLimit: 0,
+    });
+    expect(d.queue).toHaveLength(20);
+    const grades = d.queue.map((id) => gradeOf.get(id));
+    expect(grades.every((g) => g !== "0")).toBe(true); // no kana either
+    expect(grades.filter((g) => g === "1").length).toBeGreaterThan(10);
+    expect(grades.every((g) => g === "S")).toBe(false);
+  });
+
   it("resumes kanji reviews once unlocked", () => {
     const today = todayStr();
     const stats = { 5: { seen: "2026-07-01", fails: {}, interval: 3, due: today } };

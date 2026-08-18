@@ -451,8 +451,19 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
             stats,
             known,
           });
+          // ...but only cards the new plan still allows: switching *to* level
+          // 0 must not drag a kanji you missed earlier today into the
+          // kana-only deck (`INV-SCHED-7`)
+          const locked = kanaLocked({
+            all: ALL_CARDS,
+            startGrade: g,
+            stats,
+            known,
+          });
           const retries = (day?.queue ?? []).filter(
-            (id) => stats[id]?.fails?.[today]
+            (id) =>
+              stats[id]?.fails?.[today] &&
+              (!locked || BY_ID.get(id)?.grade === KANA_GRADE)
           );
           saveDay({
             ...fresh,

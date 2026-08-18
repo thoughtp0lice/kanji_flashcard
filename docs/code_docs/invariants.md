@@ -19,6 +19,7 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 | INV-SCHED-5 | `failScore` excludes today's fails and decays 0.6×/day for ordering only. | `failScore` | `test/lesson.test.js` "weights yesterday fully…", "excludes today's fails" |
 | INV-SCHED-6 | A removed card (`{removed: date}` tombstone) is never selected as a review and is eligible as a new pick again. | `isRemoved`, `generateDaily` | `test/lesson.test.js` "never reviews a removed card…", "lets a removed card be picked as a new card again" |
 | INV-SCHED-7 | While the level-0 gate holds (`startGrade === "0"` and some kana is neither `known` nor removed), today's deck contains **only** grade-`"0"` cards — no kanji is introduced or reviewed. Starting above level 0 never yields a kana card. | `kanaLocked`, `newCandidates`, `generateDaily` | `test/lesson.test.js` "level 0 — the kana gate" block ("shows no kanji at all while locked…", "releases kanji once the whole chart is known"), "ignores level 0 entirely when starting at a kanji grade"; `test/ui.test.jsx` "starts a kana-only deck when level 0 is chosen" |
+| INV-SCHED-8 | An unrecognized `startGrade` falls back to the full kanji ladder (grade 1 up), never to `slice(-1)` — the single hardest grade. `startGrade` is a synced pref, so it can arrive holding a value this build does not know. | `gradeSpan` | `test/lesson.test.js` "falls back to the full kanji ladder for an unknown startGrade" |
 
 ## State & sync (`src/api.js`, `src/Study.jsx`, `server/app.js`)
 
@@ -54,6 +55,7 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 |---|---|---|---|
 | INV-BUILD-1 | The single-file `build/kanji-server.mjs` runs with only Node ≥ 24 (no npm deps at runtime). | `scripts/bundle.mjs`, `Dockerfile` runtime stage | `make build`; Docker runtime stage installs nothing; smoke `node -e "import('./build/kanji-server.mjs')"` |
 | INV-BUILD-2 | `dist/` and `build/` are generated, gitignored, and removed on move/`make clean`. | `.gitignore`, `Makefile clean` | `scripts/check_repo.mjs` (gitignore contains both) |
+| INV-BUILD-3 | `index.html` (including the SPA deep-link fallback) is served `Cache-Control: no-cache` so a deploy reaches an already-visited browser; content-hashed `/assets/*` are served `immutable`. Without this a client can stay on superseded scheduling code indefinitely. | `server/prod.js` `sendAsset`, `server/index.js` static `setHeaders` | `curl -sD - -o /dev/null http://host/ \| grep -i cache-control` → `no-cache`; same on `/assets/*.js` → `immutable` |
 
 ## Repository & agents (docs, `.agents/`, adapters)
 
