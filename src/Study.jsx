@@ -19,6 +19,7 @@ import {
   todayStr,
   totalFails,
 } from "./lesson.js";
+import { checkReading, inputScriptFor, typingApplies } from "./reading.js";
 
 // every studiable card: level 0 (kana) first, then the jōyō kanji. Ids are
 // disjoint across the two datasets, so one `stats` map covers both.
@@ -106,6 +107,10 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     initialPrefs.newPerDay ?? initialPrefs.dailyGoal ?? null
   );
   const [reviewLimit, setReviewLimit] = useState(initialPrefs.reviewLimit ?? null);
+  // typing test: "off" | "kana" (level-0 cards only) | "all"
+  const [typing, setTyping] = useState(initialPrefs.typing ?? "kana");
+  // what you type for a *kanji*: "romaji" | "kana" (kana cards are always romaji)
+  const [kanjiInput, setKanjiInput] = useState(initialPrefs.kanjiInput ?? "romaji");
   const [known, setKnown] = useState(() => new Set(loadJSON(knownKey, [])));
   const [stats, setStats] = useState(() => loadJSON(statsKey, {}));
   const [day, setDay] = useState(() => {
@@ -124,6 +129,8 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   // null — fail already recorded (cross/demote), just "next →"
   const [pending, setPending] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // what the user has typed into the reading test (pending === "type")
+  const [typed, setTyped] = useState("");
 
   // switch views, keeping the URL in sync
   const navigate = (next) => {
@@ -192,6 +199,8 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
         if (p.startGrade) setStartGrade(p.startGrade);
         if (p.newPerDay ?? p.dailyGoal) setNewPerDay(p.newPerDay ?? p.dailyGoal);
         if (p.reviewLimit) setReviewLimit(p.reviewLimit);
+        if (p.typing) setTyping(p.typing);
+        if (p.kanjiInput) setKanjiInput(p.kanjiInput);
         const serverToday = server.days?.[todayStr()];
         if (serverToday) {
           setDay(serverToday);
@@ -207,10 +216,10 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
 
   // persist prefs locally + to the server (skip until initial sync settles)
   useEffect(() => {
-    const prefs = { mode, startGrade, newPerDay, reviewLimit };
+    const prefs = { mode, startGrade, newPerDay, reviewLimit, typing, kanjiInput };
     localStorage.setItem(prefsKey, JSON.stringify(prefs));
     if (ready) pushState(token, { prefs });
-  }, [mode, startGrade, newPerDay, reviewLimit, ready]);
+  }, [mode, startGrade, newPerDay, reviewLimit, typing, kanjiInput, ready]);
 
   const needsSetup = ready && (!startGrade || !newPerDay || !reviewLimit);
 
@@ -304,11 +313,33 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     }
   };
 
-  // ✓ — "I think I know it": show the answer first; nothing is recorded
-  // until the user confirms or demotes
+  // ✓ — "I think I know it". With the typing test on for this card that
+  // claim has to be backed up: the card shrinks and an input appears, and
+  // the typed reading grades itself (no self-assessment). Otherwise the
+  // answer is shown and the user confirms or demotes.
   const check = () => {
     if (!card) return;
+    if (typingApplies(card, typing)) {
+      setTyped("");
+      setPending("type");
+      return; // stay on the front — the glyph is the prompt
+    }
     setPending("check");
+    setFlipped(true);
+  };
+
+  // strict auto-grading: a correct reading counts as ✓ and moves straight on;
+  // a wrong one records the miss and flips to the answer to study
+  const submitTyped = () => {
+    if (!card || pending !== "type") return;
+    const correct = checkReading(card, typed, inputScriptFor(card, kanjiInput));
+    setTyped("");
+    if (correct) {
+      confirmCheck();
+      return;
+    }
+    recordFail();
+    setPending(null);
     setFlipped(true);
   };
 
@@ -345,6 +376,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     if (!card) return;
     recordFail();
     setPending(null);
+    setTyped("");
   };
 
   // ✗ — failed: interval shrinks, due again tomorrow; flip to study and the
@@ -353,12 +385,16 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     if (!card) return;
     recordFail();
     setPending(null);
+    setTyped("");
     setFlipped(true);
   };
 
   // tap/space flip: peeking at the answer still offers know / don't know
   const flip = () => {
     if (!card) return;
+    // during the typing test the answer stays hidden — peeking would hand
+    // the user the very thing they are being asked to produce
+    if (pending === "type") return;
     if (flipped) {
       setFlipped(false);
       if (pending === "peek") setPending(null);
@@ -371,6 +407,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   // move the current card to the end of today's queue
   const skip = () => {
     setPending(null);
+    setTyped("");
     if (!card || day.queue.length < 2) {
       setFlipped(false);
       return;
@@ -390,6 +427,9 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
         }
         return;
       }
+      // while the typing test is up the input owns the keyboard (the guard
+      // above already lets INPUT through); only escape still applies
+      if (pending === "type" && e.key !== "Escape") return;
       switch (e.key) {
         case " ":
           e.preventDefault();
@@ -538,6 +578,10 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           newPerDay={newPerDay}
           reviewLimit={reviewLimit}
           startGrade={startGrade}
+          typing={typing}
+          kanjiInput={kanjiInput}
+          onTyping={setTyping}
+          onKanjiInput={setKanjiInput}
           onMode={setMode}
           onChangePlan={() => {
             setMenuOpen(false);
@@ -580,6 +624,11 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
               flipped={flipped}
               pendingCheck={pending === "check"}
               pendingPeek={pending === "peek"}
+              typing={pending === "type"}
+              typed={typed}
+              inputScript={inputScriptFor(card, kanjiInput)}
+              onTyped={setTyped}
+              onSubmitTyped={submitTyped}
               onFlip={flip}
               onCheck={check}
               onCross={cross}

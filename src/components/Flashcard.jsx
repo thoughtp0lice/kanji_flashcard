@@ -7,6 +7,71 @@ export function gradeLabel(g) {
   return g === "S" ? "secondary" : `grade ${g}`;
 }
 
+// The three typefaces a learner actually meets: 明朝 (serif, print), ゴシック
+// (sans, screens/signage) and 丸ゴシック (rounded, packaging). Worth showing
+// because the shapes genuinely differ — さ and き break their strokes in some
+// faces and join them in others. These are system stacks, not bundled fonts
+// (the app ships as one self-contained file), so a device that lacks a face
+// falls back to another — still no worse than the single face it had before.
+const FACES = [
+  ["serif", "var(--serif)", "明朝"],
+  ["sans", "var(--sans)", "ゴシック"],
+  ["rounded", "var(--round)", "丸ゴシック"],
+];
+
+// A kana card earns a layout of its own: the pair side by side with the
+// rōmaji, the glyph across typefaces, then a word it shows up in.
+export function KanaBack({ card }) {
+  const hira = card.script === "hiragana" ? card.kanji : card.pair;
+  const kata = card.script === "katakana" ? card.kanji : card.pair;
+  return (
+    <>
+      <div className="kana-pair">
+        <div className="kana-cell">
+          <span className="kana-glyph" lang="ja">
+            {hira}
+          </span>
+          <span className="kana-script">hiragana</span>
+        </div>
+        <div className="kana-cell">
+          <span className="kana-glyph" lang="ja">
+            {kata}
+          </span>
+          <span className="kana-script">katakana</span>
+        </div>
+        <div className="kana-romaji">{card.romaji}</div>
+      </div>
+
+      <div className="kana-faces">
+        {FACES.map(([name, stack, label]) => (
+          <div className="face-cell" key={name}>
+            <span className="face-glyph" style={{ fontFamily: stack }} lang="ja">
+              {card.kanji}
+            </span>
+            <span className="face-label" lang="ja">
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {card.examples?.length > 0 && (
+        <ul className="examples">
+          {card.examples.map(([w, r, g]) => (
+            <li key={w}>
+              <span className="ex-word" lang="ja">
+                {w}
+              </span>
+              <span className="ex-reading">{r}</span>
+              <span className="ex-gloss">{g}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 // the head block beside a card's glyph: what the card *is*. A kana's reading
 // is its own glyph and its script is already in the meta line below, so it
 // shows the rōmaji alone; a kanji shows gloss + readings + rōmaji.
@@ -84,6 +149,11 @@ export default function Flashcard({
   practice = false,
   pendingCheck = false,
   pendingPeek = false,
+  typing = false,
+  typed = "",
+  inputScript = "romaji",
+  onTyped,
+  onSubmitTyped,
 }) {
   // The displayed card lags behind `card` when navigating away from a flipped
   // card, so the flip-back animation finishes before the answer swaps out.
@@ -223,8 +293,46 @@ export default function Flashcard({
     nextPillBtn
   );
 
+  // the typing test: the card gives up its lower half to a text field, and
+  // the answer stays hidden — the glyph above is the whole prompt
+  const typePad = (
+    <form
+      className="type-pad"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmitTyped();
+      }}
+    >
+      <input
+        className="type-input"
+        value={typed}
+        onChange={(e) => onTyped(e.target.value)}
+        placeholder={inputScript === "kana" ? "かな" : "rōmaji"}
+        aria-label={
+          inputScript === "kana"
+            ? "Type the reading in kana"
+            : "Type the reading in rōmaji"
+        }
+        autoFocus
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        lang={inputScript === "kana" ? "ja" : undefined}
+      />
+      <div className="type-actions">
+        <button type="button" className="ghost-btn" onClick={onCross}>
+          ✕ don't know
+        </button>
+        <button type="submit" className="primary-btn" disabled={!typed.trim()}>
+          check
+        </button>
+      </div>
+    </form>
+  );
+
   return (
-    <div className="card-zone">
+    <div className={`card-zone${typing ? " typing" : ""}`}>
       <div className="card-scene">
         <div
           className={`card${flipped ? " flipped" : ""}`}
@@ -243,7 +351,7 @@ export default function Flashcard({
                 <div className="meaning-main">{shown.meaning}</div>
               )}
             </div>
-            {!isDesktop && (
+            {!isDesktop && !typing && (
               <div className="front-actions">
                 {practice ? (
                   <>
@@ -262,20 +370,26 @@ export default function Flashcard({
 
           <div className="card-face card-back">
             <div className="back-scroll">
-              <div className="back-head">
-                <span className="back-kanji" lang="ja">
-                  {shown.kanji}
-                </span>
-                <div className="back-id">
-                  <CardIdentity card={shown} />
-                </div>
-              </div>
+              {shown.kind === "kana" ? (
+                <KanaBack card={shown} />
+              ) : (
+                <>
+                  <div className="back-head">
+                    <span className="back-kanji" lang="ja">
+                      {shown.kanji}
+                    </span>
+                    <div className="back-id">
+                      <CardIdentity card={shown} />
+                    </div>
+                  </div>
 
-              <div className="back-meta">
-                <CardMeta card={shown} />
-              </div>
+                  <div className="back-meta">
+                    <CardMeta card={shown} />
+                  </div>
+                </>
+              )}
 
-              {examples.length > 0 && (
+              {shown.kind !== "kana" && examples.length > 0 && (
                 <ul className="examples">
                   {examples.map(([w, r, g]) => (
                     <li key={w}>
@@ -312,7 +426,10 @@ export default function Flashcard({
           </div>
         </div>
       </div>
-      {isDesktop && <div className="control-bar">{desktopControls}</div>}
+      {typing && typePad}
+      {isDesktop && !typing && (
+        <div className="control-bar">{desktopControls}</div>
+      )}
     </div>
   );
 }

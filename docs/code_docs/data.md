@@ -63,12 +63,18 @@ readings), so the source is auditable rather than a generated blob.
 | `grade` | `"0"` | `"0"` | `KANA_GRADE` — level 0 (`GRADE_ORDER[0]`) |
 | `meaning` | string | `"hiragana a"` | front text in "meaning" mode; script-qualified so あ and ア are distinguishable |
 | `kana` | string | `"あ"` | the glyph again (a kana's reading *is* itself); the card back suppresses this line for `kind: "kana"` |
-| `romaji` | string | `"a"` | Hepburn |
+| `romaji` | string | `"a"` | Hepburn; also the answer for the typing test |
+| `examples` | `[[word, romaji, gloss]]` | `[["あめ","ame","rain"]]` | one elementary word **containing** the sign — hiragana words for hiragana, loanwords for katakana |
 
-Kana records deliberately **omit** `strokes`, `radical`, and `old` — the card
-back branches on `kind` and shows the paired syllabary instead
-(`CardMeta` in `Flashcard.jsx`). `EXAMPLES` has no kana keys, so example lists
-render empty.
+Kana records deliberately **omit** `strokes`, `radical`, and `old` — the back
+face branches on `kind` and renders `KanaBack` instead (pair + rōmaji,
+typefaces, example). `EXAMPLES` (the kanji table) has no kana keys; kana carry
+their own `examples` inline.
+
+Note the middle tuple element is **rōmaji**, not a kana reading as in
+`EXAMPLES` — a kana word needs no reading gloss. The words are hand-authored
+(there is no generator); `scripts/check_repo.mjs` asserts every card has one
+and that the word actually contains its own sign.
 
 **Scope:** the base chart only. Dakuten (が/ぱ) and yōon (きゃ) are mechanical
 derivations of these 46 signs and are out of scope — level 0 exists to unlock

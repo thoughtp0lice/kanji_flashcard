@@ -159,7 +159,7 @@ describe("level 0 (kana)", () => {
     expect(day.queue.every((id) => kanaIds.has(id))).toBe(true);
   });
 
-  it("shows the paired syllabary on the back instead of strokes/radical", async () => {
+  it("gives the kana back three rows: pair + rōmaji, typefaces, a word", async () => {
     loggedIn();
     mockServer({ state: { prefs: KANA_PLAN } });
     render(<App />);
@@ -167,11 +167,30 @@ describe("level 0 (kana)", () => {
     // the chart is taught in order, so the first card is あ
     expect(document.querySelector(".kanji-main").textContent).toBe("あ");
     await userEvent.click(screen.getByLabelText("Flashcard — tap to flip"));
-    const meta = await screen.findByText((_, el) =>
-      el?.classList.contains("back-meta")
-    );
-    expect(meta.textContent).toBe("hiragana · katakana ア");
-    expect(meta.textContent).not.toMatch(/strokes|radical/);
+
+    // row 1 — both scripts side by side, then the rōmaji
+    const pair = document.querySelector(".kana-pair");
+    expect([...pair.querySelectorAll(".kana-glyph")].map((e) => e.textContent))
+      .toEqual(["あ", "ア"]);
+    expect([...pair.querySelectorAll(".kana-script")].map((e) => e.textContent))
+      .toEqual(["hiragana", "katakana"]);
+    expect(pair.querySelector(".kana-romaji").textContent).toBe("a");
+
+    // row 2 — the same glyph in three typefaces
+    const faces = document.querySelectorAll(".kana-faces .face-cell");
+    expect(faces).toHaveLength(3);
+    for (const f of faces) {
+      expect(f.querySelector(".face-glyph").textContent).toBe("あ");
+    }
+
+    // row 3 — an elementary word that actually contains the kana
+    const ex = document.querySelector(".examples li");
+    expect(ex.querySelector(".ex-word").textContent).toBe("あめ");
+    expect(ex.querySelector(".ex-gloss").textContent).toBe("rain");
+
+    // and none of the kanji-only furniture
+    expect(document.querySelector(".back-meta")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/strokes|radical/);
   });
 });
 
@@ -380,6 +399,101 @@ describe("admin dashboard", () => {
     await userEvent.click(screen.getByLabelText("Home"));
     expect(window.location.pathname).toBe("/");
     expect(await screen.findByLabelText("I know this")).toBeInTheDocument();
+  });
+});
+
+describe("typing test", () => {
+  const KANA_PLAN = { mode: "kanji", startGrade: "0", newPerDay: 2, reviewLimit: 5 };
+  const typeInto = async (text) => {
+    const input = await screen.findByLabelText("Type the reading in rōmaji");
+    await userEvent.type(input, text);
+    return input;
+  };
+
+  it("swaps ✓ for an input, and a correct reading advances the card", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana" } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+
+    // the answer is NOT shown — the glyph is the whole prompt (the deck is
+    // shuffled, so read which kana came up rather than assuming one)
+    const glyph = document.querySelector(".kanji-main").textContent;
+    const shown = KANA.find((k) => k.kanji === glyph);
+    expect(shown).toBeDefined();
+    expect(document.querySelector(".card-zone").className).toContain("typing");
+    // the card has not flipped, so the answer face stays turned away
+    expect(document.querySelector(".card").className).not.toContain("flipped");
+    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
+    // nothing recorded until the answer is submitted
+    expect(JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}")).toEqual({});
+
+    await typeInto(shown.romaji);
+    await userEvent.click(screen.getByRole("button", { name: "check" }));
+
+    // straight to the next card, graded as a pass
+    expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
+    const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
+    const st = Object.values(stats)[0];
+    expect(st.interval).toBe(4);
+    expect(st.fails).toEqual({});
+  });
+
+  it("records a miss and shows the answer when the reading is wrong", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana" } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    await typeInto("zzz");
+    await userEvent.click(screen.getByRole("button", { name: "check" }));
+
+    const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
+    expect(Object.values(stats)[0].fails[todayStr()]).toBe(1);
+    // flipped to the answer to study, card not counted as done
+    expect(await screen.findByRole("button", { name: "next →" })).toBeInTheDocument();
+    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
+    expect(document.querySelector(".card").className).toContain("flipped");
+    expect(screen.queryByLabelText("Type the reading in rōmaji")).toBeNull();
+  });
+
+  it("accepts alternative romanizations and ignores case", async () => {
+    loggedIn();
+    // し is the 12th hiragana; start the deck there by marking the first 11 known
+    mockServer({
+      state: {
+        prefs: { ...KANA_PLAN, typing: "kana", newPerDay: 1 },
+        known: KANA.slice(0, 11).map((k) => k.id),
+      },
+    });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    expect(document.querySelector(".kanji-main").textContent).toBe("し");
+    await typeInto("SI"); // kunrei rather than Hepburn "shi"
+    await userEvent.click(screen.getByRole("button", { name: "check" }));
+
+    const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
+    expect(Object.values(stats)[0].interval).toBe(4);
+  });
+
+  it("does not prompt for typing when the setting is off", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "off" } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    // straight to the old self-graded flow
+    expect(await screen.findByRole("button", { name: "✓ next" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Type the reading in rōmaji")).toBeNull();
+  });
+
+  it("asks for kana instead of rōmaji when kanji input is set to kana", async () => {
+    loggedIn();
+    mockServer({
+      state: { prefs: { ...PLAN, typing: "all", kanjiInput: "kana" } },
+    });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    expect(await screen.findByLabelText("Type the reading in kana")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Type the reading in rōmaji")).toBeNull();
   });
 });
 

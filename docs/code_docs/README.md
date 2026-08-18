@@ -45,7 +45,7 @@ scripts/check_repo.mjs        # repository contract checks (npm run check)
 | Part | Doc | Code | Status |
 |---|---|---|---|
 | Scheduling & daily deck | [lesson.md](lesson.md) | `src/lesson.js` | active |
-| Frontend (orchestration, views, sync client) | [frontend.md](frontend.md) | `src/App.jsx`, `src/Study.jsx`, `src/components/`, `src/api.js` | active |
+| Frontend (orchestration, views, sync client) | [frontend.md](frontend.md) | `src/App.jsx`, `src/Study.jsx`, `src/components/`, `src/api.js`, `src/reading.js` | active |
 | Backend API | [server.md](server.md) | `server/app.js`, `server/index.js`, `server/prod.js` | active |
 | Card datasets (kanji + level-0 kana) | [data.md](data.md) | `src/data.js`, `src/examples.js`, `src/kana.js` | active (kanji vendored/generated; kana authored) |
 | Build pipeline & single-file server | [bundling.md](bundling.md) | `scripts/embed-assets.mjs`, `scripts/bundle.mjs`, `Makefile`, `Dockerfile` | active |
@@ -127,6 +127,7 @@ work. See [frontend.md](frontend.md) § "Load & merge" and `INV-SYNC-*`.
 | **level 0 / kana gate** | the 92-card hiragana+katakana course; while it holds, the deck is kana-only (`INV-SCHED-7`) |
 | **new-per-day / review-limit** | intake cap / review cap in the daily plan |
 | **infinite mode** | keep drawing capped-out reviews + extra new cards |
+| **typing test** | ✓ demands the reading typed in; correct passes the card, wrong is a miss (`INV-TYPE-1`) |
 | **state blob** | the JSON `{known,prefs,stats,days}` stored per user |
 
 ## Where do I look?
@@ -134,6 +135,7 @@ work. See [frontend.md](frontend.md) § "Load & merge" and `INV-SYNC-*`.
 | I want to… | Go to |
 |---|---|
 | change interval math / deck mix | `src/lesson.js` → [lesson.md](lesson.md) |
+| change how a typed answer is judged | `src/reading.js` → [frontend.md](frontend.md) |
 | change the study loop / a view / a shortcut | `src/Study.jsx`, `src/components/` → [frontend.md](frontend.md) |
 | add/change an API route or auth rule | `server/app.js` → [server.md](server.md) |
 | change what syncs or how merges resolve | `src/api.js`, `mergeStats` → [frontend.md](frontend.md), [server.md](server.md) |

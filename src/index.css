@@ -17,6 +17,9 @@
   --shadow: 0 8px 28px rgba(70, 90, 130, 0.13), 0 2px 8px rgba(70, 90, 130, 0.07);
   --sans: "Hiragino Sans", "Noto Sans JP", Meiryo, system-ui, sans-serif;
   --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  /* third face for the kana "alternative fonts" row — rounded gothic */
+  --round: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "Yu Gothic UI",
+    "Segoe UI", system-ui, sans-serif;
 }
 
 html,
@@ -188,6 +191,11 @@ button {
   font-size: 0.78rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.sheet-label {
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .sheet-actions {
@@ -397,10 +405,142 @@ button {
   color: var(--muted);
 }
 
+/* back — kana layout: pair + rōmaji, the glyph across typefaces, a word */
+
+.kana-pair {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.kana-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.kana-glyph {
+  font-family: var(--serif);
+  font-size: clamp(3.4rem, 17vw, 4.6rem);
+  line-height: 1.05;
+}
+
+.kana-script {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.kana-romaji {
+  margin-left: auto;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.kana-faces {
+  display: flex;
+  gap: 0.6rem;
+  border-top: 1px solid var(--card-edge);
+  padding-top: 0.8rem;
+}
+
+.face-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.5rem 0.2rem;
+  background: var(--bg);
+  border-radius: 12px;
+}
+
+.face-glyph {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.face-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
 .back-actions {
   display: flex;
   gap: 0.6rem;
   padding: 0.6rem 1.4rem 1.3rem;
+}
+
+/* ---------- typing test ---------- */
+
+/* the card gives up its lower half to the input; on mobile the zone is a
+   plain row, so it has to become a column first */
+.card-zone.typing {
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* higher specificity than the .card-scene sizing in the media queries below,
+   so it wins regardless of source order — but their `height`/`margin` still
+   apply unless explicitly reset here */
+.card-zone.typing .card-scene {
+  flex: 0 0 48%;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+}
+
+.type-pad {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+}
+
+.type-input {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.9rem 1rem;
+  font-family: inherit;
+  font-size: 1.5rem;
+  text-align: center;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.type-input::placeholder {
+  color: var(--faint);
+  font-size: 1.1rem;
+}
+
+.type-input:focus {
+  border-color: var(--accent);
+}
+
+.type-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.type-actions .ghost-btn {
+  flex: 1;
+}
+
+.type-actions .primary-btn {
+  flex: 1;
 }
 
 .next-btn {
@@ -906,5 +1046,18 @@ button {
   /* no in-card action bar on desktop — restore the back face's bottom inset */
   .back-scroll {
     padding-bottom: 1.4rem;
+  }
+  /* typing: the card keeps its phone width but halves in height, and the
+     input sits under it rather than filling the rest of the column */
+  .card-zone.typing .card-scene {
+    flex: 0 0 340px;
+    width: min(480px, 100%);
+  }
+  .type-pad {
+    flex: none;
+    width: min(480px, 100%);
+  }
+  .type-input {
+    font-size: 1.7rem;
   }
 }

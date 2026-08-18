@@ -32,6 +32,14 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 | INV-SYNC-3 | `pushState` is debounced, coalesces partials, and resets pending state on token change (no cross-user writes). | `src/api.js` `pushState` | Review of `pushState`; token-swap branch |
 | INV-SYNC-4 | A removal tombstone survives merges against stale live state: it wins unless the live side's `seen`/fail activity is strictly after the removal date (re-learned); two tombstones keep the later date. | `mergeStats` in `Study.jsx` | `test/ui.test.jsx` "lets a removal tombstone beat stale live state…", "revives a card re-learned after its removal", "keeps the later of two tombstones" |
 
+## Typing test (`src/reading.js`, `src/Study.jsx`)
+
+| ID | Invariant | Defined / enforced in | How checked |
+|---|---|---|---|
+| INV-TYPE-1 | Grading is strict and automatic: a correct typed reading applies `onSuccess` and advances; a wrong one applies `onFail` and flips to the answer. Nothing is recorded until submit. | `submitTyped` in `Study.jsx` | `test/ui.test.jsx` "a correct reading advances the card", "records a miss and shows the answer when the reading is wrong" |
+| INV-TYPE-2 | The answer never turns while `pending === "type"` — `flip()` is disabled and the `1`/`2`/space shortcuts are suppressed, so the card cannot be graded or revealed by a stray keystroke. | `flip`, key handler in `Study.jsx` | `test/ui.test.jsx` "a correct reading advances the card" (asserts the card is not `flipped`); review of the key handler |
+| INV-TYPE-3 | Matching accepts **any** listed reading and folds romanization systems, long vowels and kana script together; a kana card is always answered in rōmaji regardless of `kanjiInput`. | `checkReading`, `inputScriptFor` | `test/reading.test.js` (18 cases, incl. sweeps over all 92 kana and all 2,136 kanji) |
+
 ## Auth & admin (`server/app.js`)
 
 | ID | Invariant | Defined / enforced in | How checked |
@@ -47,7 +55,7 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 |---|---|---|---|
 | INV-DATA-1 | `KANJI[].id` values are unique; `BY_ID` is total over them. | `src/data.js`; `BY_ID` in `Study.jsx` | `scripts/check_repo.mjs` (dup-id scan) |
 | INV-DATA-2 | Every `KANJI[].grade` is a member of `GRADE_ORDER`. | `src/data.js` / `lesson.js` | `scripts/check_repo.mjs` (grade-domain scan) |
-| INV-DATA-3 | `KANA` ids are unique and **disjoint from `KANJI` ids** (one `stats` map and one `BY_ID` index cover both); every record is `kind: "kana"`, grade `"0"`, carries `script`/`pair`/`romaji`, and its `pair` is another `KANA` glyph, with the two scripts equal in size. | `src/kana.js` | `scripts/check_repo.mjs` (kana id/grade/pairing scan) |
+| INV-DATA-3 | `KANA` ids are unique and **disjoint from `KANJI` ids** (one `stats` map and one `BY_ID` index cover both); every record is `kind: "kana"`, grade `"0"`, carries `script`/`pair`/`romaji`, and its `pair` is another `KANA` glyph, with the two scripts equal in size. Every card has ≥1 example whose word **contains that card's own sign** and has both rōmaji and a gloss. | `src/kana.js` | `scripts/check_repo.mjs` (kana id/grade/pairing/example scan) |
 
 ## Build (`scripts/`, `Makefile`, `Dockerfile`)
 

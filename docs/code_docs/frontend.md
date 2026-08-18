@@ -49,7 +49,7 @@ Per-user `localStorage` keys are namespaced by username:
 | State | Persisted to | Notes |
 |---|---|---|
 | `known` | `known` key + `PUT /api/state {known}` | `Set<id>` of confirmed cards |
-| `mode`/`startGrade`/`newPerDay`/`reviewLimit` | `prefs` key + `{prefs}` | `dailyGoal` is a legacy alias carried into `newPerDay` |
+| `mode`/`startGrade`/`newPerDay`/`reviewLimit`/`typing`/`kanjiInput` | `prefs` key + `{prefs}` | `dailyGoal` is a legacy alias carried into `newPerDay`; unset `typing`/`kanjiInput` default to `"kana"`/`"romaji"` |
 | `stats` | `stats` key + `{stats}` | per-kanji SRS map (see [lesson.md](lesson.md)) |
 | `day` | `day` key + `{days:{[date]:day}}` | today's deck; discarded if `date !== todayStr()` |
 
@@ -93,6 +93,53 @@ The ✓ button does **not** immediately mark the card known. Flow:
    **next →**.
 5. `skip()` rotates the current card to the end of today's queue.
 
+### The typing test (`pending = "type"`)
+
+When it applies to the current card, ✓ does not flip — it demands the reading.
+The card shrinks to the top ~half (`.card-zone.typing`) and a large centered
+input takes the space below; the answer face never turns, and `flip()` is
+disabled so a tap cannot leak it. Grading is **strict and automatic** — the
+typed reading replaces the user's self-assessment:
+
+| Result | Effect |
+|---|---|
+| correct | `confirmCheck()` — `onSuccess`, added to `known`, straight to the next card |
+| wrong | `recordFail()` — `onFail`, flips to the answer to study, `next →` |
+
+Governed by two synced prefs, both in the settings sheet:
+
+| Pref | Values | Meaning |
+|---|---|---|
+| `typing` | `"off"` \| `"kana"` (default) \| `"all"` | which cards demand a typed reading |
+| `kanjiInput` | `"romaji"` (default) \| `"kana"` | what you type for a **kanji**; kana cards are always rōmaji, since their glyph is on screen |
+
+Answer matching lives in [`src/reading.js`](../../src/reading.js) — pure, and
+deliberately tolerant (see its own section below). While the input is focused
+the global key handler steps aside (it already ignores `INPUT`), and
+`pending === "type"` suppresses the `1`/`2`/space shortcuts so a stray
+keystroke cannot grade the card; `Escape` still works.
+
+## Answer matching (`src/reading.js`)
+
+Pure string math, no React. The bias is **tolerant**: rejecting a right answer
+over a romanization system is worse than accepting a near-miss in self-study.
+Both the typed text and the card's stored readings fold to one canonical form:
+
+- macrons stripped (`kōhī` → `kohi`), case/spaces/punctuation dropped;
+- Hepburn and kunrei folded together (`shi`≡`si`, `chi`≡`ti`, `tsu`≡`tu`,
+  `fu`≡`hu`, `ji`≡`zi`, `sha`≡`sya`…);
+- long vowels collapsed (`kou`≡`koo`≡`kō`≡`ko`, `nn`≡`n`);
+- kana input folded katakana→hiragana, so `アイ` and `あい` both pass.
+
+A card's readings field holds several (`"アイ、あわ-れ、あわ-れむ"`); **any** of
+them counts, and for an okurigana reading both the whole word and the stem the
+kanji itself covers are accepted (`awa-re` → `aware` *and* `awa`). を also
+accepts `o`, which is how it is actually pronounced.
+
+The trade-off: collapsing long vowels means `ko` is accepted for a card read
+`kou`. That is a deliberate false-accept — you are typing the reading of a card
+already on screen, not choosing between candidates.
+
 Keyboard: `space` flip, `2` = ✓/confirm, `1` = ✗/demote, `→` skip, `esc`
 back-to-lesson / close menu. (Mirrors the README shortcut table — keep both in
 sync.) A `setInterval` rolls the deck over at local midnight.
@@ -115,8 +162,23 @@ markup, and `DeckView`'s detail modal reuses both:
 
 | Helper | Kanji card | Kana card |
 |---|---|---|
-| `CardIdentity` | gloss + readings + rōmaji | rōmaji alone (its reading *is* the glyph, and the script is in the line below) |
-| `CardMeta` | `grade 4 · 13 strokes · radical 心` (+ old form) | `hiragana · katakana ア` |
+| `CardIdentity` | gloss + readings + rōmaji | rōmaji alone (its reading *is* the glyph) |
+| `CardMeta` | `grade 4 · 13 strokes · radical 心` (+ old form) | — (kana use `KanaBack`) |
+| `KanaBack` | — | the whole back face, three rows (below) |
+
+A kana back is not a kanji back with fields blanked out — it is its own
+layout, because a kana has no strokes/radical/gloss to fill the space:
+
+| Row | Shows |
+|---|---|
+| 1 `.kana-pair` | the sign in **both** scripts side by side (あ / ア) with the rōmaji — the pairing is the thing being learned |
+| 2 `.kana-faces` | the same glyph in three typefaces — 明朝 (serif), ゴシック (sans), 丸ゴシック (rounded). Genuinely useful: さ/き/り join or break their strokes depending on the face |
+| 3 `.examples` | one elementary word containing the sign (`card.examples`, see [data.md](data.md)) |
+
+The typefaces are **system font stacks** (`--serif`/`--sans`/`--round`), not
+bundled files — the app ships as one self-contained bundle and a Japanese
+webfont would add megabytes. On a device missing a face the stack falls back,
+which is no worse than the single face used before.
 
 `hasMore` (the "keep going ∞" affordance) mirrors the gate so infinite mode
 never offers kanji that `generateDaily` would refuse.

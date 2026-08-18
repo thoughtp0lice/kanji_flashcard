@@ -23,10 +23,18 @@ cross-device sync.
   ~×2.5 (4 → 10 → 25 → 63 days…), a ✗ cuts it to ~20% and brings the card
   back tomorrow. Yesterday's misses are always in today's deck, even past
   the review limit.
+- **Typing test** — instead of grading yourself, prove it: pressing ✓ shrinks
+  the card to the top half and asks you to type the reading. Get it right and
+  the card passes and moves on; get it wrong and it counts as a miss and shows
+  you the answer. On for kana by default (`off` / `kana` / `all` in settings),
+  and kanji can be answered in **rōmaji or kana**. Spelling is judged
+  leniently — `shi`/`si`, `kou`/`kō`/`ko` and either syllabary all count.
 - **Card details** — meaning, on/kun readings, rōmaji, stroke count,
   radical, old forms, and up to 3 common example words per kanji
   (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
-  Kana cards show their rōmaji and the same sound in the other syllabary.
+  A kana card gets its own back: the sign in **both** syllabaries with its
+  rōmaji, then the same glyph in three typefaces (明朝 / ゴシック / 丸ゴシック —
+  they really do differ), then an everyday word that uses it (あ → あめ, rain).
 - **Seen-kanji browser** — grid of everything you've studied, sortable by
   most-failed, filterable to failed-only, with detail popups. From a popup
   you can remove a card from your deck entirely — it stops coming up for
@@ -100,6 +108,10 @@ User data lives in `server/data/kanji.db` (gitignored).
 | `1` | ✗ don't know |
 | `→` | skip / next |
 | `esc` | back to lesson / close menu |
+
+During the typing test the input takes the keyboard: `enter` submits your
+answer, and the shortcuts above are suspended so a stray key cannot grade the
+card (`esc` still works).
 
 ## Development
 

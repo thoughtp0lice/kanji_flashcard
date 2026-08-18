@@ -18,7 +18,8 @@ hiragana/katakana-only until the whole chart is known (`INV-SCHED-7`).
 
 - **Frontend:** React 18 + Vite. State orchestration in `src/Study.jsx`;
   presentational components in `src/components/`; SRS scheduling in
-  `src/lesson.js` (pure, the algorithmic core).
+  `src/lesson.js` and typed-answer matching in `src/reading.js` (both pure —
+  the algorithmic core).
 - **Backend:** small Express 5 + `node:sqlite` server (`server/app.js`,
   factory `createApp(dbPath, opts)`), serving accounts, cross-device state
   sync, an admin dashboard, and — in production — the built frontend.
@@ -67,6 +68,7 @@ When you change code, update the docs that describe it **in the same change.**
 | the sync/state shape (`known`/`prefs`/`stats`/`days`) | `server/app.js`, `src/api.js`, `src/Study.jsx`, `docs/code_docs/server.md`, `docs/code_docs/frontend.md`, `INV-STATE-*` |
 | an API route, auth rule, or DB table | `server/app.js`, `docs/code_docs/server.md`, `test/server.test.js`, `INV-AUTH-*`/`INV-ADMIN-*` |
 | a React view, component prop, or keyboard shortcut | the component, `docs/code_docs/frontend.md`, `README.md` (shortcut table), `test/ui.test.jsx` |
+| how a typed answer is accepted or rejected | `src/reading.js`, `docs/code_docs/frontend.md` § Answer matching, `INV-TYPE-*`, `test/reading.test.js` |
 | the kanji/kana/example data shape | `src/data.js`/`src/examples.js`/`src/kana.js`, `docs/code_docs/data.md`, `INV-DATA-*` |
 | a command, flag, or dependency | `docs/code_docs/build.md`, `package.json`/`Makefile`, `scripts/check_repo.mjs` if it asserts the command |
 | the build/bundling flow or an output path | `scripts/*.mjs`, `docs/code_docs/bundling.md`, and delete the stale artifact location |
