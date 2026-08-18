@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { EXAMPLES } from "../examples.js";
-import { resolveFaces } from "../fonts.js";
+import { facesFor } from "../fonts.js";
 import { examplesForKana, highlight } from "../kanaExamples.js";
 
 // short label for a level, used on the card back and in the plan summary
@@ -9,15 +9,33 @@ export function gradeLabel(g) {
   return g === "S" ? "secondary" : `grade ${g}`;
 }
 
-// A kana card earns a layout of its own, four rows: the pair, the rōmaji,
-// the glyph in calligraphic styles, and words the sound turns up in.
-export function KanaBack({ card }) {
+// The calligraphic row — the card's glyph in the bundled faces. Optional
+// (the `altFonts` setting) and shown on kanji backs too; `facesFor` drops any
+// face that cannot render this card's glyph.
+export function AltFonts({ card }) {
+  const faces = facesFor(card);
+  if (!faces.length) return null;
+  return (
+    <div className="kana-faces">
+      {faces.map((face) => (
+        <div className="face-cell" key={face.key} title={face.hint}>
+          <span className="face-glyph" style={{ fontFamily: face.stack }} lang="ja">
+            {card.kanji}
+          </span>
+          <span className="face-label" lang="ja">
+            {face.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// A kana card earns a layout of its own: the pair, the rōmaji, optionally the
+// calligraphic row, and words the sound turns up in.
+export function KanaBack({ card, altFonts }) {
   const hira = card.script === "hiragana" ? card.kanji : card.pair;
   const kata = card.script === "katakana" ? card.kanji : card.pair;
-  // font probing touches the DOM, so keep it out of render and off the
-  // module top level (jsdom/SSR would run it at import time)
-  const [faces, setFaces] = useState(() => resolveFaces());
-  useEffect(() => setFaces(resolveFaces()), []);
   const examples = examplesForKana(card);
 
   return (
@@ -41,31 +59,7 @@ export function KanaBack({ card }) {
         <span className="kana-romaji">{card.romaji}</span>
       </div>
 
-      <div className="kana-faces">
-        {faces.map((face) => (
-          <div
-            className={`face-cell${face.available ? "" : " face-missing"}`}
-            key={face.key}
-            title={face.hint}
-          >
-            <span
-              className="face-glyph"
-              style={{ fontFamily: face.stack }}
-              lang="ja"
-            >
-              {card.kanji}
-            </span>
-            <span className="face-label" lang="ja">
-              {face.label}
-            </span>
-            {/* saying nothing would pass a fallback face off as the real
-                thing — the label has to be honest about what rendered */}
-            {!face.available && (
-              <span className="face-note">no font on this device</span>
-            )}
-          </div>
-        ))}
-      </div>
+      {altFonts && <AltFonts card={card} />}
 
       {examples.length > 0 && (
         <ul className="examples kana-examples">
@@ -81,6 +75,7 @@ export function KanaBack({ card }) {
                   <b>{hit}</b>
                   {after}
                 </span>
+                <span className="ex-romaji">{e.romaji}</span>
                 <span className="ex-gloss">{e.gloss}</span>
               </li>
             );
@@ -172,6 +167,7 @@ export default function Flashcard({
   typed = "",
   inputScript = "romaji",
   verdict = null, // "right" | "wrong" — tints the card after an answer
+  altFonts = false,
   onTyped,
   onSubmitTyped,
 }) {
@@ -289,11 +285,18 @@ export default function Flashcard({
     </button>
   );
 
+  // after a typed answer the card is showing its verdict: one button, and it
+  // is the user's to press — a right answer still gets confirmed, not skipped
+  // past automatically
+  const verdictBtn = verdict === "right" ? confirmBtn : nextPillBtn;
+
   const desktopControls = practice ? (
     <>
       {prevBtn}
       {nextArrowBtn}
     </>
+  ) : verdict ? (
+    verdictBtn
   ) : !flipped ? (
     <>
       {crossBtn}
@@ -340,12 +343,18 @@ export default function Flashcard({
         spellCheck={false}
         lang={inputScript === "kana" ? "ja" : undefined}
       />
+      {/* the same pair as the front of the card, so ✕ and ✓ mean the same
+          thing and sit in the same place whether or not you are typing */}
       <div className="type-actions">
-        <button type="button" className="ghost-btn" onClick={onCross}>
-          ✕ don't know
-        </button>
-        <button type="submit" className="primary-btn" disabled={!typed.trim()}>
-          check
+        {crossBtn}
+        <button
+          type="submit"
+          className="round-btn check"
+          disabled={!typed.trim()}
+          title="Check my answer (enter)"
+          aria-label="Check my answer"
+        >
+          ✓
         </button>
       </div>
     </form>
@@ -397,7 +406,7 @@ export default function Flashcard({
           <div className="card-face card-back">
             <div className="back-scroll">
               {shown.kind === "kana" ? (
-                <KanaBack card={shown} />
+                <KanaBack card={shown} altFonts={altFonts} />
               ) : (
                 <>
                   <div className="back-head">
@@ -412,6 +421,8 @@ export default function Flashcard({
                   <div className="back-meta">
                     <CardMeta card={shown} />
                   </div>
+
+                  {altFonts && <AltFonts card={shown} />}
                 </>
               )}
 
@@ -434,7 +445,9 @@ export default function Flashcard({
 
             {!isDesktop && (
               <div className="back-actions">
-                {showChoice ? (
+                {verdict ? (
+                  verdictBtn
+                ) : showChoice ? (
                   <>
                     {demoteBtn}
                     {confirmBtn}

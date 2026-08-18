@@ -8,8 +8,10 @@ export default function SettingsSheet({
   startGrade,
   typing,
   kanjiInput,
+  altFonts,
   onTyping,
   onKanjiInput,
+  onAltFonts,
   onMode,
   onChangePlan,
   onReset,
@@ -77,6 +79,24 @@ export default function SettingsSheet({
           </div>
         </div>
       )}
+
+      <div className="sheet-row spread">
+        <span className="sheet-label">alt fonts on the back</span>
+        <div className="segmented" role="group" aria-label="Alternative fonts">
+          <button
+            className={altFonts ? "" : "active"}
+            onClick={() => onAltFonts(false)}
+          >
+            off
+          </button>
+          <button
+            className={altFonts ? "active" : ""}
+            onClick={() => onAltFonts(true)}
+          >
+            on
+          </button>
+        </div>
+      </div>
 
       <div className="sheet-row spread">
         <span className="stat">{user}</span>

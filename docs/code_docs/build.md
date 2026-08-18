@@ -23,6 +23,7 @@ command is not here, assume it does not exist. Architecture of the build is in
 | `npm run build` | `vite build` only → `dist/` |
 | `npm run bundle` | full 3-stage single-file build → `build/kanji-server.mjs` |
 | `npm run check` | repository contract checks (`scripts/check_repo.mjs`) |
+| `node scripts/fetch-fonts.mjs` | re-download + re-subset the bundled calligraphic webfonts into `src/fonts/` (**needs network**; output is committed, so this is only run to add glyphs or change a face) |
 | `make build` | `npm run bundle` + prints artifact size |
 | `make run` | build then run the single-file server (`PORT`, `KANJI_ADMINS`) |
 | `make test` | `npm test` |

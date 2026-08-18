@@ -1,3 +1,8 @@
+/* bundled calligraphic faces for the card back's alt-fonts row; each file is
+   declared with a unicode-range, so nothing is fetched until a glyph in it is
+   painted (see src/fonts/README.md) */
+@import "./fonts/fonts.css";
+
 * {
   margin: 0;
   padding: 0;
@@ -421,11 +426,11 @@ button {
   gap: 2.2rem;
 }
 
+/* no rule between the kana and their rōmaji — they are one statement */
 .kana-romaji-row {
   display: flex;
   justify-content: center;
-  border-top: 1px solid var(--card-edge);
-  padding-top: 0.7rem;
+  margin-top: -0.4rem;
 }
 
 .kana-cell {
@@ -485,21 +490,15 @@ button {
   color: var(--muted);
 }
 
-/* the font is not installed — say so rather than pass a fallback off as 草書 */
-.face-cell.face-missing {
-  opacity: 0.55;
-}
-
-.face-note {
-  font-size: 0.52rem;
-  line-height: 1.15;
-  text-align: center;
-  color: var(--faint);
-}
-
 .kana-examples {
   border-top: 1px solid var(--card-edge);
   padding-top: 0.8rem;
+}
+
+.ex-romaji {
+  grid-column: 2;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 .kana-examples .ex-reading b {
@@ -609,9 +608,10 @@ button {
   width: 100%;
 }
 
+/* the input is the card's width — it reads as the card's other half, not as
+   a form control that happens to be underneath it */
 .type-input {
   width: 100%;
-  max-width: 22rem;
   padding: 0.9rem 1rem;
   font-family: inherit;
   font-size: 1.5rem;
@@ -634,20 +634,17 @@ button {
   border-color: var(--accent);
 }
 
+/* same ✕ / ✓ pair as the front of the card, same spacing */
 .type-actions {
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  justify-content: center;
+  gap: 3.5rem;
   width: 100%;
-  max-width: 22rem;
 }
 
-.type-actions .ghost-btn {
-  flex: 1;
-}
-
-.type-actions .primary-btn {
-  flex: 1;
+.type-actions .round-btn:disabled {
+  opacity: 0.4;
+  box-shadow: none;
 }
 
 .next-btn {

@@ -24,21 +24,26 @@ cross-device sync.
   back tomorrow. Yesterday's misses are always in today's deck, even past
   the review limit.
 - **Typing test** — instead of grading yourself, prove it: pressing ✓ shrinks
-  the card to the top half and asks you to type the reading. The card answers
-  back — **light green** if you were right, and it moves on by itself; **light
-  red** if you were wrong, and it stays put with the answer showing. On for
-  kana by default (`off` / `kana` / `all` in settings), and kanji can be
-  answered in **rōmaji or kana**. Spelling is judged leniently — `shi`/`si`,
-  `kou`/`kō`/`ko` and either syllabary all count.
+  the card to the top half and asks you to type the reading, under the same
+  ✕ / ✓ buttons the front uses. The card then turns over and answers back —
+  **light green** if you were right, **light red** if you were wrong — and
+  waits for you to move on; nothing flashes past. On for kana by default
+  (`off` / `kana` / `all` in settings), and kanji can be answered in **rōmaji
+  or kana**. Spelling is judged leniently — `shi`/`si`, `kou`/`kō`/`ko` and
+  either syllabary all count.
 - **Card details** — meaning, on/kun readings, rōmaji, stroke count,
   radical, old forms, and up to 3 common example words per kanji
   (from [kanjiapi.dev](https://kanjiapi.dev), JMdict/KANJIDIC2, CC BY-SA).
-  A kana card gets its own back, in four rows: the sign in **both**
-  syllabaries, its rōmaji, the glyph in three calligraphic styles
-  (楷書 / 草書 / 手書き), and words the sound turns up in — drawn from the
-  grade 1–2 kanji examples, with the sign picked out of the reading.
-  The calligraphic styles use fonts your device already has; where one is
-  missing the card says so instead of showing a substitute.
+  A kana card gets its own back: the sign in **both** syllabaries, its rōmaji,
+  and words the sound turns up in — drawn from the grade 1–2 kanji examples,
+  with the sign picked out of the reading and romanized.
+- **Alt fonts** (optional) — see any card in three Japanese calligraphic
+  faces: [Yuji Syuku](https://fonts.google.com/specimen/Yuji+Syuku) (brush),
+  [Slackside One](https://fonts.google.com/specimen/Slackside+One)
+  (handwriting) and
+  [Hachi Maru Pop](https://fonts.google.com/specimen/Hachi+Maru+Pop)
+  (rounded). They ship with the app rather than loading from a CDN, subset to
+  just the glyphs it can show, and are only downloaded when the row is on.
 - **Seen-kanji browser** — grid of everything you've studied, sortable by
   most-failed, filterable to failed-only, with detail popups. From a popup
   you can remove a card from your deck entirely — it stops coming up for
@@ -155,3 +160,5 @@ Architecture, invariants, and the commands live under `docs/`:
 - Kanji list: [Wikipedia — List of jōyō kanji](https://en.wikipedia.org/wiki/List_of_j%C5%8Dy%C5%8D_kanji)
 - Example words: [kanjiapi.dev](https://kanjiapi.dev) (JMdict/KANJIDIC2 via
   the [EDRDG](https://www.edrdg.org/), CC BY-SA)
+- Calligraphic fonts: Yuji Syuku, Slackside One and Hachi Maru Pop, bundled
+  under the SIL Open Font License 1.1 — see [`src/fonts/`](src/fonts/README.md)

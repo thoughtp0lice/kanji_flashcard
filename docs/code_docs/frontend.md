@@ -49,7 +49,7 @@ Per-user `localStorage` keys are namespaced by username:
 | State | Persisted to | Notes |
 |---|---|---|
 | `known` | `known` key + `PUT /api/state {known}` | `Set<id>` of confirmed cards |
-| `mode`/`startGrade`/`newPerDay`/`reviewLimit`/`typing`/`kanjiInput` | `prefs` key + `{prefs}` | `dailyGoal` is a legacy alias carried into `newPerDay`; unset `typing`/`kanjiInput` default to `"kana"`/`"romaji"` |
+| `mode`/`startGrade`/`newPerDay`/`reviewLimit`/`typing`/`kanjiInput`/`altFonts` | `prefs` key + `{prefs}` | `dailyGoal` is a legacy alias carried into `newPerDay`; unset `typing`/`kanjiInput`/`altFonts` default to `"kana"`/`"romaji"`/`false` |
 | `stats` | `stats` key + `{stats}` | per-kanji SRS map (see [lesson.md](lesson.md)) |
 | `day` | `day` key + `{days:{[date]:day}}` | today's deck; discarded if `date !== todayStr()` |
 
@@ -96,21 +96,25 @@ The ✓ button does **not** immediately mark the card known. Flow:
 ### The typing test (`pending = "type"`)
 
 When it applies to the current card, ✓ does not flip — it demands the reading.
-The card **animates** down to the top ~half (`.card-zone.typing`) and a large
-centered input rises into the space below; the answer face never turns, and
-`flip()` is disabled so nothing can leak it. Grading is **strict and
-automatic** — the typed reading replaces the user's self-assessment, and the
-card colors itself before anything else happens (`verdict` → `.verdict-right`
-/ `.verdict-wrong`):
+The card **animates** down to the top ~half (`.card-zone.typing`) and an input
+the full width of the card rises into the space below, under the same round
+✕ / ✓ pair the front uses. The answer face never turns, and `flip()` is
+disabled so nothing can leak it. Grading is **strict and automatic** — the
+typed reading replaces the user's self-assessment:
 
 | Result | Effect |
 |---|---|
-| correct | card goes light green, held `VERDICT_MS` (650 ms), then `confirmCheck()` — `onSuccess`, added to `known`, next card |
-| wrong | card goes light red **and stays**: `recordFail()` → `onFail`, flips to the answer to study, `next →` |
+| correct | card turns over, goes light green, and **waits**; `confirmCheck()` on `✓ next` applies `onSuccess` and advances |
+| wrong | `recordFail()` immediately, card turns over light red and waits; `next →` rotates it to the back of today's queue |
 
-The green hold is a real timer, so a pass is written to `stats` when it
-expires, not on submit — tests must wait for it. It lives in a ref and is
-cleared on unmount so signing out mid-hold cannot write the next card's state.
+**Neither outcome advances on its own.** A right answer is worth seeing the
+back of too, and a timer would flash the answer past before it could be read.
+The verdict shows a single button, so there is exactly one way forward and no
+self-grading left to do.
+
+Note the asymmetry: a **miss is banked at submit** so it cannot be dodged by
+navigating away, while a **pass is applied on confirm** — matching the existing
+check/confirm flow, where nothing good is recorded until the user says so.
 
 The shrink animates `max-height`, not `flex-basis`: the flex main size is what
 changes, and transitioning `flex` means animating `flex-grow`, which the layout
@@ -132,6 +136,7 @@ Governed by two synced prefs, both in the settings sheet:
 |---|---|---|
 | `typing` | `"off"` \| `"kana"` (default) \| `"all"` | which cards demand a typed reading |
 | `kanjiInput` | `"romaji"` (default) \| `"kana"` | what you type for a **kanji**; kana cards are always rōmaji, since their glyph is on screen |
+| `altFonts` | `false` (default) \| `true` | show the calligraphic row on the card back |
 
 Answer matching lives in [`src/reading.js`](../../src/reading.js) — pure, and
 deliberately tolerant (see its own section below). While the input is focused
@@ -192,18 +197,33 @@ layout, because a kana has no strokes/radical/gloss to fill the space:
 | Row | Shows |
 |---|---|
 | 1 `.kana-pair` | the sign in **both** scripts side by side (あ / ア) — the pairing is the thing being learned |
-| 2 `.kana-romaji-row` | the rōmaji, alone |
-| 3 `.kana-faces` | the glyph in three calligraphic styles — 楷書 / 草書 / 手書き |
-| 4 `.kana-examples` | words the sound appears in, from [`kanaExamples.js`](../../src/kanaExamples.js), with the sign picked out of the reading in bold |
+| 2 `.kana-romaji-row` | the rōmaji, alone. **No rule between it and row 1** — the two are one statement about the same sound |
+| 3 `.kana-faces` | the glyph in the bundled calligraphic faces (optional — the `altFonts` setting) |
+| 4 `.kana-examples` | words the sound appears in, from [`kanaExamples.js`](../../src/kanaExamples.js), with the sign picked out of the reading in bold and the whole reading romanized |
 
-**The faces are system fonts and may not exist.** The app loads nothing
-external, so 楷書/草書/手書き are only available if the OS ships them — 楷書
-usually does (UD デジタル教科書体 on Windows, YuKyokasho/Klee on macOS), 草書
-almost never. [`src/fonts.js`](../../src/fonts.js) probes each candidate with
-the canvas `measureText` trick and marks a cell `.face-missing` with a
-"no font on this device" note when nothing matched, rather than labelling a
-Mincho fallback 草書. Where canvas is unavailable (jsdom) probing reports
-*available* — an unknown is not evidence of absence.
+### Alt fonts (`src/fonts.js`, `src/fonts/`)
+
+The faces are **bundled webfonts**, not system fonts — an earlier version
+probed the OS with canvas `measureText` and had to tell most people the font
+was missing. `src/fonts/fonts.css` declares them as subset woff2 (generated by
+[`scripts/fetch-fonts.mjs`](../../scripts/fetch-fonts.mjs); see
+[`src/fonts/README.md`](../../src/fonts/README.md) for sizes and licence).
+
+| Face | Family | Kanji? |
+|---|---|---|
+| 筆 | Yuji Syuku — brush calligraphy | yes |
+| 手書き | Slackside One — casual handwriting | **no** |
+| 丸ポップ | Hachi Maru Pop — rounded handwriting | yes |
+
+`facesFor(card)` drops any face that cannot render the card: a kana back shows
+all three, a **kanji** back shows two, because Slackside One has no kanji
+outlines and a silent system fallback under a label claiming otherwise is the
+thing this row exists to avoid.
+
+The row is **off by default** and applies to kanji as well as kana. Each font
+file carries a `unicode-range`, so the browser fetches only the chunk holding a
+glyph it paints — with the setting off nothing is fetched, and a level-0 user
+only ever pulls the ~54 KB of kana faces, never the ~1.7 MB of kanji outlines.
 
 The typefaces are **system font stacks** (`--serif`/`--sans`/`--round`), not
 bundled files — the app ships as one self-contained bundle and a Japanese

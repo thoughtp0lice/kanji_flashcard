@@ -45,8 +45,9 @@ scripts/check_repo.mjs        # repository contract checks (npm run check)
 | Part | Doc | Code | Status |
 |---|---|---|---|
 | Scheduling & daily deck | [lesson.md](lesson.md) | `src/lesson.js` | active |
-| Frontend (orchestration, views, sync client) | [frontend.md](frontend.md) | `src/App.jsx`, `src/Study.jsx`, `src/components/`, `src/api.js`, `src/reading.js` | active |
+| Frontend (orchestration, views, sync client) | [frontend.md](frontend.md) | `src/App.jsx`, `src/Study.jsx`, `src/components/`, `src/api.js`, `src/reading.js`, `src/fonts.js`, `src/kanaExamples.js` | active |
 | Backend API | [server.md](server.md) | `server/app.js`, `server/index.js`, `server/prod.js` | active |
+| Bundled webfonts | [frontend.md](frontend.md) § Alt fonts | `src/fonts/`, `scripts/fetch-fonts.mjs` | active (generated, OFL) |
 | Card datasets (kanji + level-0 kana) | [data.md](data.md) | `src/data.js`, `src/examples.js`, `src/kana.js` | active (kanji vendored/generated; kana authored) |
 | Build pipeline & single-file server | [bundling.md](bundling.md) | `scripts/embed-assets.mjs`, `scripts/bundle.mjs`, `Makefile`, `Dockerfile` | active |
 | Repo contract checks | — | `scripts/check_repo.mjs` | active |
@@ -135,6 +136,7 @@ work. See [frontend.md](frontend.md) § "Load & merge" and `INV-SYNC-*`.
 | I want to… | Go to |
 |---|---|
 | change interval math / deck mix | `src/lesson.js` → [lesson.md](lesson.md) |
+| change the calligraphic faces | `scripts/fetch-fonts.mjs`, `src/fonts.js` → [src/fonts/README.md](../../src/fonts/README.md) |
 | change how a typed answer is judged | `src/reading.js` → [frontend.md](frontend.md) |
 | change the study loop / a view / a shortcut | `src/Study.jsx`, `src/components/` → [frontend.md](frontend.md) |
 | add/change an API route or auth rule | `server/app.js` → [server.md](server.md) |

@@ -36,11 +36,18 @@ Enforcement points: the Vitest suites (`test/`) cover algorithmic/API contracts;
 
 | ID | Invariant | Defined / enforced in | How checked |
 |---|---|---|---|
-| INV-TYPE-1 | Grading is strict and automatic: a correct typed reading applies `onSuccess` and advances; a wrong one applies `onFail` and flips to the answer. Nothing is recorded until submit. | `submitTyped` in `Study.jsx` | `test/ui.test.jsx` "a correct reading advances the card", "records a miss and shows the answer when the reading is wrong" |
-| INV-TYPE-2 | The answer never turns while `pending === "type"` — `flip()` is disabled and the `1`/`2`/space shortcuts are suppressed, so the card cannot be graded or revealed by a stray keystroke. | `flip`, key handler in `Study.jsx` | `test/ui.test.jsx` "a correct reading advances the card" (asserts the card is not `flipped`); review of the key handler |
+| INV-TYPE-1 | Grading is strict and automatic: a correct typed reading leads to `onSuccess`, a wrong one to `onFail`. Nothing is recorded until submit. | `submitTyped` in `Study.jsx` | `test/ui.test.jsx` "a correct reading turns the card over to confirm", "records a miss and shows the answer when the reading is wrong" |
+| INV-TYPE-2 | The answer never turns while `pending === "type"` — `flip()` is disabled and the `1`/`2`/space shortcuts are suppressed, so the card cannot be graded or revealed by a stray keystroke. | `flip`, key handler in `Study.jsx` | `test/ui.test.jsx` "a correct reading turns the card over to confirm" (asserts the card is not `flipped` while typing); review of the key handler |
 | INV-TYPE-3 | Matching accepts **any** listed reading and folds romanization systems, long vowels and kana script together; a kana card is always answered in rōmaji regardless of `kanjiInput`. | `checkReading`, `inputScriptFor` | `test/reading.test.js` (18 cases, incl. sweeps over all 92 kana and all 2,136 kanji) |
-| INV-TYPE-4 | A graded answer colors the card before anything else: correct holds green for `VERDICT_MS` then advances, wrong goes red and stays. The green hold is cleared on unmount so it cannot write state for a card that is gone. | `submitTyped`, `verdictTimer` in `Study.jsx` | `test/ui.test.jsx` "colors the card green on a right answer, then advances on its own", "colors the card red on a wrong answer and leaves it up" |
+| INV-TYPE-4 | A graded answer turns the card over and colors it — green for right, red for wrong — and then **waits**: nothing advances on a timer. A miss is banked at submit; a pass is applied by `confirmCheck` when the user confirms. | `submitTyped` in `Study.jsx`, `verdictBtn` in `Flashcard` | `test/ui.test.jsx` "never advances on its own — both verdicts wait to be confirmed" |
 | INV-TYPE-5 | The lesson card has no click-to-flip — no handler, no `role`, no tab stop — so the answer cannot be revealed by a stray tap. Practice mode (`practice`) keeps it. | `Flashcard` card element | `test/ui.test.jsx` "ignores a tap, so the answer cannot be revealed by accident", "still flips on tap in practice mode" |
+
+## Fonts (`src/fonts.js`, `src/fonts/`)
+
+| ID | Invariant | Defined / enforced in | How checked |
+|---|---|---|---|
+| INV-FONT-1 | The alt-fonts row only ever shows a face that can actually render the card: Slackside One has no kanji outlines, so a kanji back drops it rather than showing a system fallback under its label. | `facesFor` | `test/ui.test.jsx` "show on a kanji back too, minus the face with no kanji outlines" |
+| INV-FONT-2 | Fonts are bundled and subset, never fetched from a CDN, and every file carries a `unicode-range` so a browser downloads only the chunk it paints. With `altFonts` off nothing is fetched. | `scripts/fetch-fonts.mjs`, `src/fonts/fonts.css` | `test/ui.test.jsx` "are off by default, so no webfont is pulled in"; `grep -c unicode-range src/fonts/fonts.css` = one per file |
 
 ## Auth & admin (`server/app.js`)
 

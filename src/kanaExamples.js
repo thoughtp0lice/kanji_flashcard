@@ -12,7 +12,7 @@
 
 import { KANJI } from "./data.js";
 import { EXAMPLES } from "./examples.js";
-import { toHiragana } from "./reading.js";
+import { toHiragana, toRomaji } from "./reading.js";
 
 const EASY_GRADES = new Set(["1", "2"]);
 const PER_CARD = 2;
@@ -27,7 +27,9 @@ function build() {
     for (const [word, reading, gloss] of EXAMPLES[k.kanji] ?? []) {
       for (const ch of new Set(reading)) {
         if (!byChar.has(ch)) byChar.set(ch, []);
-        byChar.get(ch).push({ word, reading, gloss, grade: k.grade });
+        byChar
+          .get(ch)
+          .push({ word, reading, romaji: toRomaji(reading), gloss, grade: k.grade });
       }
     }
   }

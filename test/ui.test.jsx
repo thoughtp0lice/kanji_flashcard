@@ -161,7 +161,7 @@ describe("level 0 (kana)", () => {
 
   it("gives the kana back four rows: pair, rōmaji, faces, example words", async () => {
     loggedIn();
-    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "off" } } });
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "off", altFonts: true } } });
     render(<App />);
     await screen.findByLabelText("I know this");
     // the chart is taught in order, so the first card is あ
@@ -179,22 +179,23 @@ describe("level 0 (kana)", () => {
     // row 2 — the rōmaji, on its own
     expect(document.querySelector(".kana-romaji-row .kana-romaji").textContent).toBe("a");
 
-    // row 3 — the same glyph in the three calligraphic styles
+    // row 3 — the same glyph in all three bundled faces (kana cards get the
+    // kana-only face too)
     const faces = [...document.querySelectorAll(".kana-faces .face-cell")];
     expect(faces).toHaveLength(3);
-    expect(faces.map((f) => f.querySelector(".face-label").textContent))
-      .toEqual(["楷書", "草書", "手書き"]);
     for (const f of faces) {
       expect(f.querySelector(".face-glyph").textContent).toBe("あ");
+      expect(f.querySelector(".face-label").textContent).not.toBe("");
     }
 
     // row 4 — real words, sourced from the grade 1–2 kanji examples, with the
-    // sign picked out of the reading
+    // sign picked out of the reading and the whole thing romanized
     const words = [...document.querySelectorAll(".kana-examples li")];
     expect(words.length).toBeGreaterThan(0);
     for (const li of words) {
       expect(li.querySelector(".ex-reading").textContent).toContain("あ");
       expect(li.querySelector(".ex-reading b").textContent).toBe("あ");
+      expect(li.querySelector(".ex-romaji").textContent).toMatch(/^[a-z']+$/);
       expect(li.querySelector(".ex-gloss").textContent).not.toBe("");
     }
 
@@ -420,7 +421,7 @@ describe("typing test", () => {
     return input;
   };
 
-  it("swaps ✓ for an input, and a correct reading advances the card", async () => {
+  it("swaps ✓ for an input, and a correct reading turns the card over to confirm", async () => {
     loggedIn();
     mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana" } } });
     render(<App />);
@@ -439,9 +440,16 @@ describe("typing test", () => {
     expect(JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}")).toEqual({});
 
     await typeInto(shown.romaji);
-    await userEvent.click(screen.getByRole("button", { name: "check" }));
+    await userEvent.click(screen.getByLabelText("Check my answer"));
 
-    // straight to the next card, graded as a pass
+    // the back comes up green and waits — nothing is banked, and the card has
+    // not moved on until the user says so
+    expect(document.querySelector(".card").className).toContain("verdict-right");
+    expect(document.querySelector(".card").className).toContain("flipped");
+    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}")).toEqual({});
+
+    await userEvent.click(await screen.findByRole("button", { name: "✓ next" }));
     expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
     const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
     const st = Object.values(stats)[0];
@@ -455,7 +463,7 @@ describe("typing test", () => {
     render(<App />);
     await userEvent.click(await screen.findByLabelText("I know this"));
     await typeInto("zzz");
-    await userEvent.click(screen.getByRole("button", { name: "check" }));
+    await userEvent.click(screen.getByLabelText("Check my answer"));
 
     const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
     expect(Object.values(stats)[0].fails[todayStr()]).toBe(1);
@@ -479,17 +487,15 @@ describe("typing test", () => {
     await userEvent.click(await screen.findByLabelText("I know this"));
     expect(document.querySelector(".kanji-main").textContent).toBe("し");
     await typeInto("SI"); // kunrei rather than Hepburn "shi"
-    await userEvent.click(screen.getByRole("button", { name: "check" }));
+    await userEvent.click(screen.getByLabelText("Check my answer"));
     expect(document.querySelector(".card").className).toContain("verdict-right");
 
-    // the pass is written when the green hold expires, not on submit
-    await waitFor(() => {
-      const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester") || "{}");
-      expect(Object.values(stats)[0]?.interval).toBe(4);
-    });
+    await userEvent.click(await screen.findByRole("button", { name: "✓ next" }));
+    const stats = JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"));
+    expect(Object.values(stats)[0].interval).toBe(4);
   });
 
-  it("colors the card green on a right answer, then advances on its own", async () => {
+  it("never advances on its own — both verdicts wait to be confirmed", async () => {
     loggedIn();
     mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana", newPerDay: 2 } } });
     render(<App />);
@@ -498,30 +504,29 @@ describe("typing test", () => {
       (k) => k.kanji === document.querySelector(".kanji-main").textContent
     );
     await typeInto(shown.romaji);
-    await userEvent.click(screen.getByRole("button", { name: "check" }));
+    await userEvent.click(screen.getByLabelText("Check my answer"));
 
-    // green goes up straight away — the card is still there to be seen
+    // green, and it stays green — no timer moves the card along
+    expect(document.querySelector(".card").className).toContain("verdict-right");
+    await new Promise((r) => setTimeout(r, 900));
     expect(document.querySelector(".card").className).toContain("verdict-right");
     expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
+    // exactly one way forward
+    expect(screen.getByRole("button", { name: "✓ next" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "✕ actually no" })).toBeNull();
 
-    // ...and the hold expires by itself, clearing the green with the card
+    await userEvent.click(screen.getByRole("button", { name: "✓ next" }));
     expect(await screen.findByText("2 / 2 today")).toBeInTheDocument();
     expect(document.querySelector(".card").className).not.toContain("verdict");
-  });
 
-  it("colors the card red on a wrong answer and leaves it up", async () => {
-    loggedIn();
-    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana", newPerDay: 2 } } });
-    render(<App />);
-    await userEvent.click(await screen.findByLabelText("I know this"));
+    // a wrong answer goes red and likewise waits
+    await userEvent.click(screen.getByLabelText("I know this"));
     await typeInto("zzz");
-    await userEvent.click(screen.getByRole("button", { name: "check" }));
-
+    await userEvent.click(screen.getByLabelText("Check my answer"));
     expect(document.querySelector(".card").className).toContain("verdict-wrong");
-    // no auto-advance: still red, still the same card, well past the green hold
     await new Promise((r) => setTimeout(r, 900));
     expect(document.querySelector(".card").className).toContain("verdict-wrong");
-    expect(screen.getByText("1 / 2 today")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "next →" })).toBeInTheDocument();
   });
 
   it("does not prompt for typing when the setting is off", async () => {
@@ -543,6 +548,37 @@ describe("typing test", () => {
     await userEvent.click(await screen.findByLabelText("I know this"));
     expect(await screen.findByLabelText("Type the reading in kana")).toBeInTheDocument();
     expect(screen.queryByLabelText("Type the reading in rōmaji")).toBeNull();
+  });
+});
+
+describe("alt fonts", () => {
+  it("are off by default, so no webfont is pulled in", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...PLAN, typing: "off" } } });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    await userEvent.keyboard(" ");
+    expect(document.querySelector(".kana-faces")).toBeNull();
+  });
+
+  it("show on a kanji back too, minus the face with no kanji outlines", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...PLAN, typing: "off", altFonts: true } } });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    const glyph = document.querySelector(".kanji-main").textContent;
+    await userEvent.keyboard(" ");
+
+    const faces = [...document.querySelectorAll(".kana-faces .face-cell")];
+    // Slackside One has no kanji glyphs, so it is dropped rather than shown
+    // as a silent system fallback — 3 faces on kana, 2 here
+    expect(faces).toHaveLength(2);
+    for (const f of faces) {
+      expect(f.querySelector(".face-glyph").textContent).toBe(glyph);
+      expect(f.querySelector(".face-glyph").style.fontFamily).toMatch(
+        /Yuji Syuku|Hachi Maru Pop/
+      );
+    }
   });
 });
 

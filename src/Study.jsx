@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KANJI } from "./data.js";
 import { KANA } from "./kana.js";
 import { fetchState, pushState } from "./api.js";
@@ -24,9 +24,6 @@ import { checkReading, inputScriptFor, typingApplies } from "./reading.js";
 // every studiable card: level 0 (kana) first, then the jōyō kanji. Ids are
 // disjoint across the two datasets, so one `stats` map covers both.
 export const ALL_CARDS = [...KANA, ...KANJI];
-
-// how long a correct answer's green stays up before the next card
-const VERDICT_MS = 650;
 
 export const BY_ID = new Map(ALL_CARDS.map((k) => [k.id, k]));
 
@@ -114,6 +111,9 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   const [typing, setTyping] = useState(initialPrefs.typing ?? "kana");
   // what you type for a *kanji*: "romaji" | "kana" (kana cards are always romaji)
   const [kanjiInput, setKanjiInput] = useState(initialPrefs.kanjiInput ?? "romaji");
+  // show the calligraphic row on the card back (bundled webfonts, so it is
+  // off by default — the kanji faces are ~1.7 MB the browser need not fetch)
+  const [altFonts, setAltFonts] = useState(initialPrefs.altFonts ?? false);
   const [known, setKnown] = useState(() => new Set(loadJSON(knownKey, [])));
   const [stats, setStats] = useState(() => loadJSON(statsKey, {}));
   const [day, setDay] = useState(() => {
@@ -136,10 +136,6 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   const [typed, setTyped] = useState("");
   // "right" | "wrong" — colors the card straight after an answer is graded
   const [verdict, setVerdict] = useState(null);
-  // the pending "hold the green, then advance" timer, cleared on unmount so a
-  // sign-out mid-hold cannot write the next card's state
-  const verdictTimer = useRef(null);
-  useEffect(() => () => clearTimeout(verdictTimer.current), []);
 
   // switch views, keeping the URL in sync
   const navigate = (next) => {
@@ -210,6 +206,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
         if (p.reviewLimit) setReviewLimit(p.reviewLimit);
         if (p.typing) setTyping(p.typing);
         if (p.kanjiInput) setKanjiInput(p.kanjiInput);
+        if (p.altFonts !== undefined) setAltFonts(p.altFonts);
         const serverToday = server.days?.[todayStr()];
         if (serverToday) {
           setDay(serverToday);
@@ -225,10 +222,10 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
 
   // persist prefs locally + to the server (skip until initial sync settles)
   useEffect(() => {
-    const prefs = { mode, startGrade, newPerDay, reviewLimit, typing, kanjiInput };
+    const prefs = { mode, startGrade, newPerDay, reviewLimit, typing, kanjiInput, altFonts };
     localStorage.setItem(prefsKey, JSON.stringify(prefs));
     if (ready) pushState(token, { prefs });
-  }, [mode, startGrade, newPerDay, reviewLimit, typing, kanjiInput, ready]);
+  }, [mode, startGrade, newPerDay, reviewLimit, typing, kanjiInput, altFonts, ready]);
 
   const needsSetup = ready && (!startGrade || !newPerDay || !reviewLimit);
 
@@ -344,17 +341,15 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     if (!card || pending !== "type") return;
     const correct = checkReading(card, typed, inputScriptFor(card, kanjiInput));
     setTyped("");
-    // color the card before acting on it — jumping straight to the next card
-    // gives no signal that the answer was even read
+    // Both outcomes turn the card over and color it, and both wait for the
+    // user: a right answer is worth seeing the back of too, and advancing on
+    // a timer means the answer flashes past before it can be read.
     setVerdict(correct ? "right" : "wrong");
     setPending(null);
-    if (correct) {
-      // hold the green, then move on
-      verdictTimer.current = setTimeout(confirmCheck, VERDICT_MS);
-      return;
-    }
-    recordFail();
-    setFlipped(true); // red stays up with the answer, to study
+    setFlipped(true);
+    // a miss is banked immediately so it cannot be dodged; a pass is applied
+    // by confirmCheck when the user presses "✓ next"
+    if (!correct) recordFail();
   };
 
   // confirmed after seeing the answer: SRS interval grows, done for today
@@ -597,6 +592,8 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
           startGrade={startGrade}
           typing={typing}
           kanjiInput={kanjiInput}
+          altFonts={altFonts}
+          onAltFonts={setAltFonts}
           onTyping={setTyping}
           onKanjiInput={setKanjiInput}
           onMode={setMode}
@@ -643,6 +640,7 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
               pendingPeek={pending === "peek"}
               typing={pending === "type"}
               verdict={verdict}
+              altFonts={altFonts}
               typed={typed}
               inputScript={inputScriptFor(card, kanjiInput)}
               onTyped={setTyped}
