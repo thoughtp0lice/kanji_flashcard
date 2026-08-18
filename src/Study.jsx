@@ -344,12 +344,13 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     // Both outcomes turn the card over and color it, and both wait for the
     // user: a right answer is worth seeing the back of too, and advancing on
     // a timer means the answer flashes past before it can be read.
-    setVerdict(correct ? "right" : "wrong");
     setPending(null);
     setFlipped(true);
-    // a miss is banked immediately so it cannot be dodged; a pass is applied
-    // by confirmCheck when the user presses "✓ next"
-    if (!correct) recordFail();
+    // a miss is banked immediately so it cannot be dodged (and recordFail is
+    // what turns the card red); a pass is applied by confirmCheck when the
+    // user presses "✓ next"
+    if (correct) setVerdict("right");
+    else recordFail();
   };
 
   // confirmed after seeing the answer: SRS interval grows, done for today
@@ -369,9 +370,14 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
     setFlipped(false);
   };
 
+  // Every way of getting a card wrong runs through here — a typed answer that
+  // missed, ✕ "don't know", and "✕ actually no" after a peek — so this is
+  // where the card goes red. Colouring only the typed path meant pressing ✕,
+  // the most common way to admit a miss, gave no feedback at all.
   const recordFail = () => {
     const t = todayStr();
     const st = freshOrExisting(card.id, t);
+    setVerdict("wrong");
     saveStats({ ...stats, [card.id]: onFail(st, t) });
     if (known.has(card.id)) {
       const next = new Set(known);
@@ -393,10 +399,9 @@ export default function Study({ user, token, isAdmin, onSignOut }) {
   // card retries later today
   const cross = () => {
     if (!card) return;
-    recordFail();
+    recordFail(); // sets the red verdict
     setPending(null);
     setTyped("");
-    setVerdict(null);
     setFlipped(true);
   };
 

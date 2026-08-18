@@ -542,6 +542,41 @@ describe("typing test", () => {
     expect(screen.getByRole("button", { name: "next →" })).toBeInTheDocument();
   });
 
+  // regression: only a *typed* wrong answer went red, so pressing ✕ — the
+  // usual way to admit a miss — gave no feedback at all
+  it("goes red for ✕ 'don't know' too, not just a typed miss", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...KANA_PLAN, typing: "kana" } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    // from inside the typing prompt
+    await userEvent.click(screen.getByLabelText("Don't know"));
+    expect(document.querySelector(".card").className).toContain("verdict-wrong");
+    expect(JSON.parse(localStorage.getItem("joyo-kanji-stats:tester"))).toBeTruthy();
+
+    // and moving on clears it
+    await userEvent.click(await screen.findByRole("button", { name: "next →" }));
+    expect(document.querySelector(".card").className).not.toContain("verdict");
+  });
+
+  it("goes red for ✕ straight from the card front, with typing off", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...PLAN, typing: "off" } } });
+    render(<App />);
+    await screen.findByLabelText("I know this");
+    await userEvent.click(screen.getByLabelText("Don't know"));
+    expect(document.querySelector(".card").className).toContain("verdict-wrong");
+  });
+
+  it("goes red for '✕ actually no' after claiming to know it", async () => {
+    loggedIn();
+    mockServer({ state: { prefs: { ...PLAN, typing: "off" } } });
+    render(<App />);
+    await userEvent.click(await screen.findByLabelText("I know this"));
+    await userEvent.click(await screen.findByRole("button", { name: "✕ actually no" }));
+    expect(document.querySelector(".card").className).toContain("verdict-wrong");
+  });
+
   it("does not prompt for typing when the setting is off", async () => {
     loggedIn();
     mockServer({ state: { prefs: { ...KANA_PLAN, typing: "off" } } });

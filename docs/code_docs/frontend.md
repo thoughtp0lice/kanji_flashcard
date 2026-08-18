@@ -107,6 +107,11 @@ typed reading replaces the user's self-assessment:
 | correct | card turns over, goes light green, and **waits**; `confirmCheck()` on `✓ next` applies `onSuccess` and advances |
 | wrong | `recordFail()` immediately, card turns over light red and waits; `next →` rotates it to the back of today's queue |
 
+The red is not exclusive to the typing test: `recordFail` is the one place a
+miss is recorded, whatever caused it, so ✕ "don't know" and "✕ actually no"
+turn the card red as well. Colouring only the typed path left the most common
+way of admitting a miss with no feedback at all.
+
 **Neither outcome advances on its own.** A right answer is worth seeing the
 back of too, and a timer would flash the answer past before it could be read.
 The verdict shows a single button, so there is exactly one way forward and no

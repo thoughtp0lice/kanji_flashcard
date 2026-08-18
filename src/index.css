@@ -445,7 +445,9 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  /* the rōmaji is large now, so it needs real air under the glyphs rather
+     than the hairline gap that suited a small caption */
+  gap: 1.5rem;
 }
 
 .kana-pair {
